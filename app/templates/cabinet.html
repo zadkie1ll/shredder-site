@@ -54,7 +54,10 @@
             <span>{{ tariff.name }}</span>
             <strong>{{ tariff.price }} ₽</strong>
             <p>{{ tariff.period }}</p>
-            <button type="button">Выбрать</button>
+            <form method="post" action="/cabinet/pay">
+              <input type="hidden" name="tariff_id" value="{{ tariff.db_tariff_id }}">
+              <button type="submit">Выбрать</button>
+            </form>
           </article>
         {% endfor %}
       </div>

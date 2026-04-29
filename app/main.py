@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.payments import create_payment_url
 from app.remnawave import create_remnawave_user, get_remnawave_user
 from app.repository import (
     create_user,
@@ -16,6 +17,7 @@ from app.repository import (
     get_user_by_username,
 )
 from app.tariffs import get_tariffs
+from app.tariffs import get_tariff_by_id
 
 
 app = FastAPI(title="Shredder Site")
@@ -131,6 +133,21 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
+
+
+@app.post("/cabinet/pay")
+async def create_payment(request: Request, tariff_id: str = Form(...)):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+
+    tariff = get_tariff_by_id(tariff_id)
+    payment_url = await create_payment_url(
+        tariff=tariff,
+        username=user.username,
+        telegram_id=user.telegram_id,
+    )
+    return RedirectResponse(payment_url, status_code=303)
 
 
 async def render_cabinet(request: Request):

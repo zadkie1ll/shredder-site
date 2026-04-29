@@ -39,6 +39,9 @@ class Settings:
     public_base_url: str
     trial_period_days: int
     internal_squads_uuids: list[str]
+    yookassa_shop_id: str | None
+    yookassa_secret: str | None
+    receipt_email: str
 
     @property
     def remnawave_enabled(self) -> bool:
@@ -49,6 +52,12 @@ def load_settings() -> Settings:
     environment = os.getenv("SHREDDER_SITE_ENV", "development")
     session_secret = os.getenv("SHREDDER_SITE_SESSION_SECRET", "dev-only-change-me")
     login_password = os.getenv("SHREDDER_SITE_LOGIN_PASSWORD", "demo12345")
+    yookassa_shop_id = os.getenv("SHREDDER_SITE_YOOKASSA_SHOP_ID") or os.getenv(
+        "MI_VPN_BOT_SHOP_ID"
+    )
+    yookassa_secret = os.getenv("SHREDDER_SITE_YOOKASSA_SECRET") or os.getenv(
+        "MI_VPN_BOT_SECRET"
+    )
     rwms_addr = os.getenv("SHREDDER_SITE_RWMS_ADDR") or os.getenv("MI_VPN_BOT_RWMS_ADDR")
     rwms_port_raw = os.getenv("SHREDDER_SITE_RWMS_PORT") or os.getenv("MI_VPN_BOT_RWMS_PORT")
     rwms_port = int(rwms_port_raw) if rwms_port_raw else None
@@ -64,6 +73,8 @@ def load_settings() -> Settings:
             raise ValueError("Postgres connection envs must be set in production.")
         if not rwms_addr or not rwms_port:
             raise ValueError("RWMS/Remnawave envs must be set in production.")
+        if not yookassa_shop_id or not yookassa_secret:
+            raise ValueError("YooKassa envs must be set in production.")
 
     return Settings(
         environment=environment,
@@ -79,6 +90,11 @@ def load_settings() -> Settings:
             for squad_uuid in squads_value.split(",")
             if squad_uuid.strip()
         ],
+        yookassa_shop_id=yookassa_shop_id,
+        yookassa_secret=yookassa_secret,
+        receipt_email=os.getenv(
+            "SHREDDER_SITE_RECEIPT_EMAIL", "receipts@shreddervpn.ru"
+        ),
     )
 
 

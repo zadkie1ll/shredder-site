@@ -39,7 +39,20 @@ def get_tariffs() -> list[dict]:
                 "name": name,
                 "price": tariff.price,
                 "period": _period_to_text(tariff.subscription_period),
+                "db_tariff_id": tariff.db_tariff_id,
                 "highlight": tariff.subscription_period.days == 90,
             }
         )
     return tariffs
+
+
+def get_tariff_by_id(db_tariff_id: str):
+    try:
+        from common.models.tariff import str_to_tariff
+    except ImportError as exc:
+        raise RuntimeError("common.models.tariff is required for payments") from exc
+
+    tariff = str_to_tariff(db_tariff_id)
+    if tariff is None:
+        raise ValueError(f"Unknown tariff id: {db_tariff_id}")
+    return tariff

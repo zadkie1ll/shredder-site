@@ -19,6 +19,7 @@ class SiteUser:
     username: str
     display_name: str
     expire_at: datetime | None
+    telegram_id: int | None = None
 
     def __getitem__(self, key: str) -> Any:
         return getattr(self, key)
@@ -72,6 +73,7 @@ def _demo_user(username: str) -> SiteUser | None:
         username="demo",
         display_name="Демо клиент",
         expire_at=datetime.now(timezone.utc) + timedelta(days=12, hours=6),
+        telegram_id=-1,
     )
     _demo_users[user.username] = user
     return user
@@ -92,6 +94,7 @@ def get_user_by_username(username: str) -> SiteUser | None:
             username=user.username,
             display_name=user.username,
             expire_at=user.expire_at,
+            telegram_id=user.telegram_id,
         )
 
 
@@ -104,6 +107,7 @@ def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
             username=username,
             display_name=username,
             expire_at=expire_at,
+            telegram_id=_synthetic_telegram_id(username),
         )
         _demo_users[username] = user
         return user
@@ -133,6 +137,7 @@ def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
             username=db_user.username or str(db_user.id),
             display_name=db_user.username or str(db_user.id),
             expire_at=db_user.expire_at,
+            telegram_id=db_user.telegram_id,
         )
 
 
