@@ -32,7 +32,7 @@ docker compose up --build
 В `.env` нужно указать:
 
 - `SHREDDER_SITE_SESSION_SECRET` — секрет для cookies-сессии;
-- `SHREDDER_SITE_LOGIN_PASSWORD` — временный общий пароль кабинета и регистрации;
+- `SHREDDER_SITE_LOGIN_PASSWORD` — временный общий пароль входа в кабинет;
 - `SHREDDER_SITE_TRIAL_PERIOD_DAYS` — срок пробного доступа при регистрации, по умолчанию 7 дней;
 - `SHREDDER_SITE_DATABASE_URL` или `MI_VPN_BOT_POSTGRES_*` — доступ к общей Postgres-базе;
 - `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` или `MI_VPN_BOT_RWMS_*` — gRPC endpoint RWMS/Remnawave.

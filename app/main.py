@@ -76,20 +76,8 @@ def register_page(request: Request):
 async def register(
     request: Request,
     username: str = Form(""),
-    password: str = Form(...),
 ):
     normalized_username = username.lower().strip()
-    if not hmac.compare_digest(password, settings.login_password):
-        return templates.TemplateResponse(
-            "register.html",
-            {
-                "request": request,
-                "user": None,
-                "error": "Неверный пароль доступа",
-            },
-            status_code=400,
-        )
-
     if normalized_username and get_user_by_username(normalized_username) is not None:
         return templates.TemplateResponse(
             "register.html",
