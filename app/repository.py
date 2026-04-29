@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
+import secrets
 from typing import Any
 
 from sqlalchemy import create_engine, func, select
@@ -57,6 +58,10 @@ def _synthetic_telegram_id(username: str) -> int:
     return -int(digest[:15], 16)
 
 
+def generate_site_username() -> str:
+    return f"site_{secrets.token_hex(8)}"
+
+
 def _demo_user(username: str) -> SiteUser | None:
     if username in _demo_users:
         return _demo_users[username]
@@ -90,10 +95,8 @@ def get_user_by_username(username: str) -> SiteUser | None:
         )
 
 
-def create_user(username: str, expire_at: datetime | None) -> SiteUser:
-    username = username.strip().lower()
-    if not username:
-        raise ValueError("username is required")
+def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
+    username = (username or generate_site_username()).strip().lower()
 
     if not database_enabled():
         user = SiteUser(
@@ -127,8 +130,8 @@ def create_user(username: str, expire_at: datetime | None) -> SiteUser:
         session.refresh(db_user)
         return SiteUser(
             id=db_user.id,
-            username=db_user.username,
-            display_name=db_user.username,
+            username=db_user.username or str(db_user.id),
+            display_name=db_user.username or str(db_user.id),
             expire_at=db_user.expire_at,
         )
 

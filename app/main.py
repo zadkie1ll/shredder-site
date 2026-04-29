@@ -9,7 +9,12 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.remnawave import create_remnawave_user, get_remnawave_user
-from app.repository import create_user, get_referrals, get_user_by_username
+from app.repository import (
+    create_user,
+    generate_site_username,
+    get_referrals,
+    get_user_by_username,
+)
 from app.tariffs import get_tariffs
 
 
@@ -70,7 +75,7 @@ def register_page(request: Request):
 @app.post("/register")
 async def register(
     request: Request,
-    username: str = Form(...),
+    username: str = Form(""),
     password: str = Form(...),
 ):
     normalized_username = username.lower().strip()
@@ -85,7 +90,7 @@ async def register(
             status_code=400,
         )
 
-    if get_user_by_username(normalized_username) is not None:
+    if normalized_username and get_user_by_username(normalized_username) is not None:
         return templates.TemplateResponse(
             "register.html",
             {
@@ -96,7 +101,8 @@ async def register(
             status_code=400,
         )
 
-    remnawave_user = await create_remnawave_user(normalized_username)
+    subscription_username = normalized_username or generate_site_username()
+    remnawave_user = await create_remnawave_user(subscription_username)
     if remnawave_user is None:
         return templates.TemplateResponse(
             "register.html",
@@ -108,7 +114,7 @@ async def register(
             status_code=502,
         )
 
-    user = create_user(normalized_username, remnawave_user.expire_at)
+    user = create_user(subscription_username, remnawave_user.expire_at)
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
 
