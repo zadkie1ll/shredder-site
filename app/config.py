@@ -41,7 +41,7 @@ class Settings:
     internal_squads_uuids: list[str]
     yookassa_shop_id: str | None
     yookassa_secret: str | None
-    receipt_email: str
+    receipt_email: str | None
 
     @property
     def remnawave_enabled(self) -> bool:
@@ -92,9 +92,7 @@ def load_settings() -> Settings:
         ],
         yookassa_shop_id=yookassa_shop_id,
         yookassa_secret=yookassa_secret,
-        receipt_email=os.getenv(
-            "SHREDDER_SITE_RECEIPT_EMAIL", "receipts@shreddervpn.ru"
-        ),
+        receipt_email=os.getenv("SHREDDER_SITE_RECEIPT_EMAIL"),
     )
 
 

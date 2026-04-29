@@ -42,41 +42,43 @@ def _create_payment_sync(tariff, username: str, telegram_id: int | None) -> str:
     if telegram_id is not None:
         metadata["telegram_id"] = telegram_id
 
-    payment = Payment.create(
-        {
-            "save_payment_method": True,
-            "amount": {
-                "value": f"{tariff.price:.2f}",
-                "currency": "RUB",
+    payload = {
+        "save_payment_method": True,
+        "amount": {
+            "value": f"{tariff.price:.2f}",
+            "currency": "RUB",
+        },
+        "confirmation": {
+            "type": "redirect",
+            "return_url": f"{settings.public_base_url}/cabinet",
+        },
+        "metadata": metadata,
+        "capture": True,
+        "description": payment_description,
+    }
+
+    if settings.receipt_email:
+        payload["receipt"] = {
+            "customer": {
+                "email": settings.receipt_email,
             },
-            "confirmation": {
-                "type": "redirect",
-                "return_url": f"{settings.public_base_url}/cabinet",
-            },
-            "metadata": metadata,
-            "capture": True,
-            "description": payment_description,
-            "receipt": {
-                "customer": {
-                    "email": settings.receipt_email,
-                },
-                "items": [
-                    {
-                        "description": payment_description,
-                        "quantity": "1.00",
-                        "amount": {
-                            "value": f"{tariff.price:.2f}",
-                            "currency": "RUB",
-                        },
-                        "vat_code": 1,
-                        "payment_mode": "full_payment",
-                        "payment_subject": "service",
-                        "measure": "piece",
-                    }
-                ],
-            },
+            "items": [
+                {
+                    "description": payment_description,
+                    "quantity": "1.00",
+                    "amount": {
+                        "value": f"{tariff.price:.2f}",
+                        "currency": "RUB",
+                    },
+                    "vat_code": 1,
+                    "payment_mode": "full_payment",
+                    "payment_subject": "service",
+                    "measure": "piece",
+                }
+            ],
         }
-    )
+
+    payment = Payment.create(payload)
 
     return payment.confirmation.confirmation_url
 
