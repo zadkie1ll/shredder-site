@@ -5,7 +5,7 @@
 <section class="auth">
   <form class="auth-card" method="post" action="/login">
     <h1>Вход</h1>
-    <p class="muted">Введи username из общей базы и пароль доступа из окружения.</p>
+    <p class="muted">Введи username и пароль, который был задан при создании доступа.</p>
     {% if error %}
       <div class="alert">{{ error }}</div>
     {% endif %}

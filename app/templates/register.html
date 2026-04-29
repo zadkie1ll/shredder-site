@@ -13,6 +13,14 @@
       Логин
       <input type="text" name="username" autocomplete="username" placeholder="Можно оставить пустым">
     </label>
+    <label>
+      Пароль
+      <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+    </label>
+    <label>
+      Повтори пароль
+      <input type="password" name="password_repeat" autocomplete="new-password" minlength="6" required>
+    </label>
     <button class="button button--primary button--full" type="submit">Создать доступ</button>
     <div class="auth-links">
       <a href="/login">Уже есть доступ</a>

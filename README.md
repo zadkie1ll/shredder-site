@@ -32,7 +32,7 @@ docker compose up --build
 В `.env` нужно указать:
 
 - `SHREDDER_SITE_SESSION_SECRET` — секрет для cookies-сессии;
-- `SHREDDER_SITE_LOGIN_PASSWORD` — временный общий пароль входа в кабинет;
+- `SHREDDER_SITE_LOGIN_PASSWORD` — legacy fallback для пользователей без личного пароля;
 - `SHREDDER_SITE_TRIAL_PERIOD_DAYS` — срок пробного доступа при регистрации, по умолчанию 7 дней;
 - `SHREDDER_SITE_YOOKASSA_SHOP_ID` / `SHREDDER_SITE_YOOKASSA_SECRET` — доступ для создания YooKassa-платежей;
 - `SHREDDER_SITE_RECEIPT_EMAIL` — email для receipt в YooKassa, по умолчанию как в боте `receipts@orpheous.ru`;

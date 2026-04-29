@@ -15,6 +15,9 @@ from app.repository import (
     generate_site_username,
     get_referrals,
     get_user_by_username,
+    initialize_site_storage,
+    user_has_site_password,
+    verify_site_password,
 )
 from app.tariffs import get_tariffs
 from app.tariffs import get_tariff_by_id
@@ -30,6 +33,11 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
+
+
+@app.on_event("startup")
+def startup() -> None:
+    initialize_site_storage()
 
 
 def current_user(request: Request):
@@ -78,8 +86,30 @@ def register_page(request: Request):
 async def register(
     request: Request,
     username: str = Form(""),
+    password: str = Form(...),
+    password_repeat: str = Form(...),
 ):
     normalized_username = username.lower().strip()
+    if len(password) < 6:
+        return templates.TemplateResponse(
+            "register.html",
+            {
+                "request": request,
+                "user": None,
+                "error": "Пароль должен быть не короче 6 символов",
+            },
+            status_code=400,
+        )
+    if password != password_repeat:
+        return templates.TemplateResponse(
+            "register.html",
+            {
+                "request": request,
+                "user": None,
+                "error": "Пароли не совпадают",
+            },
+            status_code=400,
+        )
     if normalized_username and get_user_by_username(normalized_username) is not None:
         return templates.TemplateResponse(
             "register.html",
@@ -104,7 +134,7 @@ async def register(
             status_code=502,
         )
 
-    user = create_user(subscription_username, remnawave_user.expire_at)
+    user = create_user(subscription_username, remnawave_user.expire_at, password)
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
 
@@ -113,7 +143,11 @@ async def register(
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
     normalized_username = username.lower().strip()
     user = get_user_by_username(normalized_username)
-    password_is_valid = hmac.compare_digest(password, settings.login_password)
+    password_is_valid = False
+    if user is not None:
+        password_is_valid = verify_site_password(user, password)
+        if not password_is_valid and not user_has_site_password(user):
+            password_is_valid = hmac.compare_digest(password, settings.login_password)
     if user is None or not password_is_valid:
         return templates.TemplateResponse(
             "login.html",

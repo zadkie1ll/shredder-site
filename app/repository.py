@@ -6,11 +6,13 @@ import hashlib
 import secrets
 from typing import Any
 
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import BigInteger, Column, String, create_engine, func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.security import hash_password, verify_password
 
 
 @dataclass(frozen=True)
@@ -38,10 +40,24 @@ class ReferralRow:
 _engine = create_engine(settings.database_url, pool_pre_ping=True) if settings.database_url else None
 _SessionLocal = sessionmaker(bind=_engine) if _engine is not None else None
 _demo_users: dict[str, SiteUser] = {}
+_demo_password_hashes: dict[str, str] = {}
+_SiteBase = declarative_base()
+
+
+class SiteUserCredential(_SiteBase):
+    __tablename__ = "site_user_credentials"
+
+    user_id = Column(BigInteger, primary_key=True)
+    password_hash = Column(String(256), nullable=False)
 
 
 def database_enabled() -> bool:
     return _SessionLocal is not None
+
+
+def initialize_site_storage() -> None:
+    if _engine is not None:
+        _SiteBase.metadata.create_all(_engine)
 
 
 def _common_models():
@@ -98,7 +114,7 @@ def get_user_by_username(username: str) -> SiteUser | None:
         )
 
 
-def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
+def create_user(username: str | None, expire_at: datetime | None, password: str) -> SiteUser:
     username = (username or generate_site_username()).strip().lower()
 
     if not database_enabled():
@@ -110,6 +126,7 @@ def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
             telegram_id=_synthetic_telegram_id(username),
         )
         _demo_users[username] = user
+        _demo_password_hashes[username] = hash_password(password)
         return user
 
     _, User = _common_models()
@@ -127,6 +144,13 @@ def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
         )
         session.add(db_user)
         try:
+            session.flush()
+            session.add(
+                SiteUserCredential(
+                    user_id=db_user.id,
+                    password_hash=hash_password(password),
+                )
+            )
             session.commit()
         except IntegrityError as exc:
             session.rollback()
@@ -139,6 +163,27 @@ def create_user(username: str | None, expire_at: datetime | None) -> SiteUser:
             expire_at=db_user.expire_at,
             telegram_id=db_user.telegram_id,
         )
+
+
+def user_has_site_password(user: SiteUser) -> bool:
+    if not database_enabled():
+        return user.username in _demo_password_hashes
+
+    with _SessionLocal() as session:
+        credential = session.get(SiteUserCredential, user.id)
+        return credential is not None
+
+
+def verify_site_password(user: SiteUser, password: str) -> bool:
+    if not database_enabled():
+        stored_hash = _demo_password_hashes.get(user.username)
+        return stored_hash is not None and verify_password(password, stored_hash)
+
+    with _SessionLocal() as session:
+        credential = session.get(SiteUserCredential, user.id)
+        if credential is None:
+            return False
+        return verify_password(password, credential.password_hash)
 
 
 def get_referrals(user: SiteUser) -> list[ReferralRow]:
