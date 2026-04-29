@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% set title = "Личный кабинет | Shredder VPN" %}
+
+{% block content %}
+<section class="cabinet-shell">
+  <aside class="cabinet-rail">
+    <div>
+      <p class="rail-kicker">Личный кабинет</p>
+      <h1>{{ user["display_name"] }}</h1>
+    </div>
+    <nav class="rail-nav" aria-label="Разделы кабинета">
+      <a href="#setup">Установка</a>
+      <a href="#subscription">Подписка</a>
+      <a href="#referrals">Рефералы</a>
+    </nav>
+    <a class="rail-logout" href="/logout">Выйти</a>
+  </aside>
+
+  <div class="cabinet-workspace">
+    <section class="cabinet-summary" id="subscription">
+      <div class="summary-card summary-card--dark">
+        <span>Статус подписки</span>
+        {% if expire_at %}
+          <strong>{{ days_left }} дн.</strong>
+          <p>Активна до {{ expire_at.strftime("%d.%m.%Y") }}</p>
+        {% else %}
+          <strong>0 дн.</strong>
+          <p>Подписка не активна</p>
+        {% endif %}
+      </div>
+      <div class="summary-card">
+        <span>Пользователь</span>
+        <strong>{{ user["username"] }}</strong>
+        <p>Берем из общей таблицы users</p>
+      </div>
+      <div class="summary-card">
+        <span>Бонусные дни</span>
+        <strong>+{{ bonus_days }}</strong>
+        <p>За приглашенных клиентов</p>
+      </div>
+    </section>
+
+    <section class="cabinet-panel" aria-labelledby="plans-title">
+      <div class="panel-title-row">
+        <div>
+          <p class="section-label">Управление подпиской</p>
+          <h2 id="plans-title">Продлить доступ</h2>
+        </div>
+        <a class="button button--primary" href="/#tariffs">Все тарифы</a>
+      </div>
+      <div class="cabinet-tariffs">
+        {% for tariff in tariffs %}
+          <article class="cabinet-tariff {% if tariff.highlight %}is-selected{% endif %}">
+            <span>{{ tariff.name }}</span>
+            <strong>{{ tariff.price }} ₽</strong>
+            <p>{{ tariff.period }}</p>
+            <button type="button">Выбрать</button>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="cabinet-panel" id="setup" aria-labelledby="setup-title">
+      <div class="panel-title-row">
+        <div>
+          <p class="section-label">Установка</p>
+          <h2 id="setup-title">Подключение VPN</h2>
+        </div>
+        <button class="button button--primary" type="button" title="Выдачу ключа подключим после интеграции">Скопировать ключ</button>
+      </div>
+
+      <div class="install-layout">
+        <div class="access-box">
+          <span>Ссылка подписки</span>
+          <code>{{ subscription_url or "Будет доступна после подключения RWMS" }}</code>
+        </div>
+        <ol class="install-steps">
+          <li>
+            <strong>Скачай приложение</strong>
+            <p>Для первого этапа оставляем Android-сценарий: Happ или v2RayNG.</p>
+          </li>
+          <li>
+            <strong>Добавь подписку</strong>
+            <p>Скопируй ссылку подписки из кабинета и импортируй ее в приложение.</p>
+          </li>
+          <li>
+            <strong>Включи подключение</strong>
+            <p>Открой приложение, выбери профиль Shredder VPN и нажми подключиться.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="cabinet-panel" id="referrals" aria-labelledby="referrals-title">
+      <div class="panel-title-row">
+        <div>
+          <p class="section-label">Рефералы</p>
+          <h2 id="referrals-title">Приглашения и бонусы</h2>
+        </div>
+        <button class="button button--primary" type="button" title="Копирование ссылки подключим следующим шагом">Копировать ссылку</button>
+      </div>
+
+      <div class="referral-link">
+        <span>Твоя ссылка</span>
+        <code>{{ public_base_url }}/ref/{{ user["username"] }}</code>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th>Статус</th>
+              <th>Бонус</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for referral in referrals %}
+              <tr>
+                <td>{{ referral["username"] }}</td>
+                <td>{{ referral["status"] }}</td>
+                <td>{{ referral["bonus_days"] }} дн.</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="3">Пока нет приглашенных клиентов.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</section>
+{% endblock %}

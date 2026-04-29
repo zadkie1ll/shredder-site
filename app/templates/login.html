@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set title = "Вход | Shredder VPN" %}
+
+{% block content %}
+<section class="auth">
+  <form class="auth-card" method="post" action="/login">
+    <h1>Вход</h1>
+    <p class="muted">Введи username из общей базы и пароль доступа из окружения.</p>
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <label>
+      Логин
+      <input type="text" name="username" autocomplete="username" required>
+    </label>
+    <label>
+      Пароль
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button class="button button--primary button--full" type="submit">Войти</button>
+    <div class="auth-links">
+      <a href="/register">Создать пробный доступ</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

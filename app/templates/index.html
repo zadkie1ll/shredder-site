@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set title = "Shredder VPN" %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero__content">
+    <p class="eyebrow">VPN для ежедневной работы и спокойного доступа</p>
+    <h1>Быстрый личный VPN с понятными тарифами</h1>
+    <p class="lead">Оформляйте подписку на сайте, отслеживайте срок действия и приглашайте друзей из личного кабинета.</p>
+    <div class="actions">
+      <a class="button button--primary" href="/login">Войти в кабинет</a>
+      <a class="button button--ghost" href="/register">Получить 7 дней</a>
+      <a class="button button--ghost" href="#tariffs">Смотреть тарифы</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="tariffs">
+  <div class="section__head">
+    <h2>Тарифы</h2>
+    <p>Для локального каркаса цены взяты из текущего `common.models.tariff`.</p>
+  </div>
+  <div class="tariffs">
+    {% for tariff in tariffs %}
+      <article class="tariff {% if tariff.highlight %}tariff--accent{% endif %}">
+        <div>
+          <h3>{{ tariff.name }}</h3>
+          <p>{{ tariff.period }}</p>
+        </div>
+        <strong>{{ tariff.price }} ₽</strong>
+        <a class="button button--full" href="/login">Выбрать</a>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

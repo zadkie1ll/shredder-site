@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set title = "Регистрация | Shredder VPN" %}
+
+{% block content %}
+<section class="auth">
+  <form class="auth-card" method="post" action="/register">
+    <h1>Регистрация</h1>
+    <p class="muted">Создаст пользователя в Remnawave и выдаст пробный доступ на 7 дней.</p>
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <label>
+      Логин
+      <input type="text" name="username" autocomplete="username" required>
+    </label>
+    <label>
+      Пароль доступа
+      <input type="password" name="password" autocomplete="new-password" required>
+    </label>
+    <button class="button button--primary button--full" type="submit">Создать доступ</button>
+    <div class="auth-links">
+      <a href="/login">Уже есть доступ</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

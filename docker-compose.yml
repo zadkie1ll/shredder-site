@@ -1,0 +1,10 @@
+services:
+  shredder-site:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${SHREDDER_SITE_PORT:-8010}:8000"

@@ -1,0 +1,85 @@
+import os
+from dataclasses import dataclass
+
+
+def _read_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer, got {value!r}") from exc
+
+
+def _postgres_url_from_env() -> str | None:
+    explicit_url = os.getenv("SHREDDER_SITE_DATABASE_URL")
+    if explicit_url:
+        return explicit_url
+
+    host = os.getenv("MI_VPN_BOT_POSTGRES_HOST")
+    port = os.getenv("MI_VPN_BOT_POSTGRES_PORT")
+    user = os.getenv("MI_VPN_BOT_POSTGRES_USER")
+    password = os.getenv("MI_VPN_BOT_POSTGRES_PASSWORD")
+    db = os.getenv("MI_VPN_BOT_POSTGRES_DB")
+    if not all([host, port, user, password, db]):
+        return None
+
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+
+
+@dataclass(frozen=True)
+class Settings:
+    environment: str
+    session_secret: str
+    login_password: str
+    database_url: str | None
+    rwms_addr: str | None
+    rwms_port: int | None
+    public_base_url: str
+    trial_period_days: int
+    internal_squads_uuids: list[str]
+
+    @property
+    def remnawave_enabled(self) -> bool:
+        return bool(self.rwms_addr and self.rwms_port)
+
+
+def load_settings() -> Settings:
+    environment = os.getenv("SHREDDER_SITE_ENV", "development")
+    session_secret = os.getenv("SHREDDER_SITE_SESSION_SECRET", "dev-only-change-me")
+    login_password = os.getenv("SHREDDER_SITE_LOGIN_PASSWORD", "demo12345")
+    rwms_addr = os.getenv("SHREDDER_SITE_RWMS_ADDR") or os.getenv("MI_VPN_BOT_RWMS_ADDR")
+    rwms_port_raw = os.getenv("SHREDDER_SITE_RWMS_PORT") or os.getenv("MI_VPN_BOT_RWMS_PORT")
+    rwms_port = int(rwms_port_raw) if rwms_port_raw else None
+    squads_value = os.getenv("SHREDDER_SITE_INTERNAL_SQUADS_UUIDS") or os.getenv(
+        "MI_VPN_BOT_INTERNAL_SQUADS_UUIDS", ""
+    )
+
+    database_url = _postgres_url_from_env()
+    if environment == "production":
+        if session_secret == "dev-only-change-me":
+            raise ValueError("SHREDDER_SITE_SESSION_SECRET must be set in production.")
+        if not database_url:
+            raise ValueError("Postgres connection envs must be set in production.")
+        if not rwms_addr or not rwms_port:
+            raise ValueError("RWMS/Remnawave envs must be set in production.")
+
+    return Settings(
+        environment=environment,
+        session_secret=session_secret,
+        login_password=login_password,
+        database_url=database_url,
+        rwms_addr=rwms_addr,
+        rwms_port=rwms_port,
+        public_base_url=os.getenv("SHREDDER_SITE_PUBLIC_BASE_URL", "https://shredder.local"),
+        trial_period_days=_read_int("SHREDDER_SITE_TRIAL_PERIOD_DAYS", 7),
+        internal_squads_uuids=[
+            squad_uuid.strip()
+            for squad_uuid in squads_value.split(",")
+            if squad_uuid.strip()
+        ],
+    )
+
+
+settings = load_settings()
