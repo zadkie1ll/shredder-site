@@ -24,6 +24,17 @@ def _timestamp_to_datetime(value) -> datetime | None:
         return None
 
 
+def _remnawave_user_from_response(response, fallback_expire_at: datetime | None = None) -> RemnawaveUser:
+    return RemnawaveUser(
+        username=response.username,
+        subscription_url=response.subscription_url or None,
+        expire_at=_timestamp_to_datetime(response.expire_at)
+        if response.HasField("expire_at")
+        else fallback_expire_at,
+        status=str(response.status) if response.HasField("status") else None,
+    )
+
+
 async def get_remnawave_user(username: str) -> RemnawaveUser | None:
     if not settings.remnawave_enabled:
         return None
@@ -41,14 +52,7 @@ async def get_remnawave_user(username: str) -> RemnawaveUser | None:
         response = await client.get_user_by_username(username)
         if response is None:
             return None
-        return RemnawaveUser(
-            username=response.username,
-            subscription_url=response.subscription_url or None,
-            expire_at=_timestamp_to_datetime(response.expire_at)
-            if response.HasField("expire_at")
-            else None,
-            status=str(response.status) if response.HasField("status") else None,
-        )
+        return _remnawave_user_from_response(response)
     except Exception:
         logging.exception("Failed to read Remnawave user %s", username)
         return None
@@ -90,15 +94,15 @@ async def create_remnawave_user(username: str) -> RemnawaveUser | None:
             )
         )
         if response is None:
-            return None
-        return RemnawaveUser(
-            username=response.username,
-            subscription_url=response.subscription_url or None,
-            expire_at=_timestamp_to_datetime(response.expire_at)
-            if response.HasField("expire_at")
-            else expire_at,
-            status=str(response.status) if response.HasField("status") else None,
-        )
+            fallback_response = await client.get_user_by_username(username)
+            if fallback_response is None:
+                return None
+            logging.warning(
+                "RWMS add_user returned no response for %s, but user was found afterwards",
+                username,
+            )
+            return _remnawave_user_from_response(fallback_response, expire_at)
+        return _remnawave_user_from_response(response, expire_at)
     except Exception:
         logging.exception("Failed to create Remnawave user %s", username)
         return None
