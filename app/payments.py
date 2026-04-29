@@ -55,10 +55,7 @@ def _create_payment_sync(tariff, username: str, telegram_id: int | None) -> str:
         "metadata": metadata,
         "capture": True,
         "description": payment_description,
-    }
-
-    if settings.receipt_email:
-        payload["receipt"] = {
+        "receipt": {
             "customer": {
                 "email": settings.receipt_email,
             },
@@ -76,7 +73,8 @@ def _create_payment_sync(tariff, username: str, telegram_id: int | None) -> str:
                     "measure": "piece",
                 }
             ],
-        }
+        },
+    }
 
     payment = Payment.create(payload)
 
