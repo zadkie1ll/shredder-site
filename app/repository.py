@@ -351,12 +351,27 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
             target_recurrent = session.execute(
                 select(YkRecurrentPayment).where(YkRecurrentPayment.user_id == target_user.id)
             ).scalar_one_or_none()
+            source_recurrent = session.execute(
+                select(YkRecurrentPayment).where(YkRecurrentPayment.user_id == source_user.id)
+            ).scalar_one_or_none()
             if target_recurrent is None:
                 session.execute(
                     update(YkRecurrentPayment)
                     .where(YkRecurrentPayment.user_id == source_user.id)
                     .values(user_id=target_user.id)
                 )
+            elif source_recurrent is not None:
+                target_captured_at = target_recurrent.captured_at or datetime.min
+                source_captured_at = source_recurrent.captured_at or datetime.min
+                if source_captured_at >= target_captured_at:
+                    target_recurrent.recurrent_payment_id = source_recurrent.recurrent_payment_id
+                    target_recurrent.currency = source_recurrent.currency
+                    target_recurrent.amount = source_recurrent.amount
+                    target_recurrent.subscription_period = source_recurrent.subscription_period
+                    target_recurrent.captured_at = source_recurrent.captured_at
+                    target_recurrent.is_trial_promotion = source_recurrent.is_trial_promotion
+                    target_recurrent.scheduled_payment = source_recurrent.scheduled_payment
+                session.delete(source_recurrent)
 
             if target_user.referred_by_id is None and source_user.referred_by_id != target_user.id:
                 target_user.referred_by_id = source_user.referred_by_id
