@@ -108,3 +108,46 @@ async def create_remnawave_user(username: str) -> RemnawaveUser | None:
         return None
     finally:
         await client.close()
+
+
+async def update_remnawave_user_after_telegram_link(
+    username: str,
+    expire_at: datetime | None,
+    telegram_id: int,
+) -> RemnawaveUser | None:
+    if not settings.remnawave_enabled:
+        return None
+
+    try:
+        from common.rwms_client import RwmsClient
+        import proto.rwmanager_pb2 as proto
+    except ImportError as exc:
+        raise RuntimeError(
+            "The shared common submodule and generated proto package are required "
+            "for Remnawave/RWMS access."
+        ) from exc
+
+    client = RwmsClient(settings.rwms_addr, settings.rwms_port)
+    try:
+        existing_user = await client.get_user_by_username(username)
+        if existing_user is None:
+            return None
+
+        request = proto.UpdateUserRequest(
+            uuid=existing_user.uuid,
+            telegram_id=telegram_id,
+        )
+        if expire_at is not None:
+            if expire_at.tzinfo is None:
+                expire_at = expire_at.replace(tzinfo=timezone.utc)
+            request.expire_at = expire_at
+
+        response = await client.update_user(request)
+        if response is None:
+            return None
+        return _remnawave_user_from_response(response, expire_at)
+    except Exception:
+        logging.exception("Failed to update Remnawave user %s after Telegram link", username)
+        return None
+    finally:
+        await client.close()

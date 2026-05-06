@@ -11,6 +11,7 @@
     <nav class="rail-nav" aria-label="Разделы кабинета">
       <a href="#setup">Установка</a>
       <a href="#subscription">Подписка</a>
+      <a href="#telegram">Telegram</a>
       <a href="#referrals">Рефералы</a>
     </nav>
     <a class="rail-logout" href="/logout">Выйти</a>
@@ -91,6 +92,59 @@
             <p>Открой приложение, выбери профиль Shredder VPN и нажми подключиться.</p>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section class="cabinet-panel" id="telegram" aria-labelledby="telegram-title">
+      <div class="panel-title-row">
+        <div>
+          <p class="section-label">Telegram</p>
+          <h2 id="telegram-title">Привязка аккаунта</h2>
+        </div>
+        <span class="telegram-state {% if user['telegram_id'] and user['telegram_id'] > 0 %}is-linked{% endif %}">
+          {% if user["telegram_id"] and user["telegram_id"] > 0 %}
+            Привязан
+          {% else %}
+            Не привязан
+          {% endif %}
+        </span>
+      </div>
+
+      {% if telegram_link_status %}
+        <div class="alert">
+          {% if telegram_link_status.startswith("telegram_linked_bonus:") %}
+            Telegram привязан. Бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен.
+          {% elif telegram_link_status == "telegram_linked" %}
+            Telegram привязан.
+          {% elif telegram_link_status == "telegram_already_linked" %}
+            Этот Telegram уже привязан к аккаунту.
+          {% elif telegram_link_status == "telegram_invalid" %}
+            Не удалось проверить вход через Telegram. Попробуй еще раз.
+          {% elif telegram_link_status == "telegram_not_configured" %}
+            Привязка Telegram пока не настроена.
+          {% else %}
+            Не удалось привязать Telegram. Попробуй позже.
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="telegram-link-box">
+        <div>
+          <strong>+{{ telegram_link_bonus_days }} дней за привязку Telegram</strong>
+          <p>Сайт объединит доступ с аккаунтом бота, если он уже существует, и сохранит вход по этому логину.</p>
+        </div>
+        {% if telegram_bot_username %}
+          <script
+            async
+            src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="{{ telegram_bot_username }}"
+            data-size="large"
+            data-auth-url="{{ public_base_url }}/cabinet/link/telegram/callback"
+            data-request-access="write">
+          </script>
+        {% else %}
+          <button class="button button--primary" type="button" disabled>Telegram не настроен</button>
+        {% endif %}
       </div>
     </section>
 

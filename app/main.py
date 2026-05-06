@@ -9,16 +9,23 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.payments import create_payment_url
-from app.remnawave import create_remnawave_user, get_remnawave_user
+from app.remnawave import (
+    create_remnawave_user,
+    get_remnawave_user,
+    update_remnawave_user_after_telegram_link,
+)
 from app.repository import (
+    authenticate_site_user,
     create_user,
     generate_site_username,
     get_referrals,
+    get_user_by_id,
     get_user_by_username,
     initialize_site_storage,
+    link_telegram_account,
     user_has_site_password,
-    verify_site_password,
 )
+from app.security import verify_telegram_login
 from app.tariffs import get_tariffs
 from app.tariffs import get_tariff_by_id
 
@@ -41,6 +48,10 @@ def startup() -> None:
 
 
 def current_user(request: Request):
+    user_id = request.session.get("user_id")
+    if user_id is not None:
+        return get_user_by_id(user_id)
+
     username = request.session.get("username")
     if username is None:
         return None
@@ -135,6 +146,7 @@ async def register(
         )
 
     user = create_user(subscription_username, remnawave_user.expire_at, password)
+    request.session["user_id"] = user.id
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
 
@@ -142,12 +154,14 @@ async def register(
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
     normalized_username = username.lower().strip()
-    user = get_user_by_username(normalized_username)
-    password_is_valid = False
-    if user is not None:
-        password_is_valid = verify_site_password(user, password)
-        if not password_is_valid and not user_has_site_password(user):
+    user = authenticate_site_user(normalized_username, password)
+    password_is_valid = user is not None
+    if user is None:
+        legacy_user = get_user_by_username(normalized_username)
+        if legacy_user is not None and not user_has_site_password(legacy_user):
             password_is_valid = hmac.compare_digest(password, settings.login_password)
+            if password_is_valid:
+                user = legacy_user
     if user is None or not password_is_valid:
         return templates.TemplateResponse(
             "login.html",
@@ -159,6 +173,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
             status_code=400,
         )
 
+    request.session["user_id"] = user.id
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
 
@@ -184,6 +199,48 @@ async def create_payment(request: Request, tariff_id: str = Form(...)):
     return RedirectResponse(payment_url, status_code=303)
 
 
+@app.get("/cabinet/link/telegram/callback")
+async def telegram_link_callback(request: Request):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+
+    if not settings.telegram_bot_token:
+        request.session["telegram_link_status"] = "telegram_not_configured"
+        return RedirectResponse("/cabinet#telegram", status_code=303)
+
+    payload = {key: value for key, value in request.query_params.items()}
+    if not verify_telegram_login(
+        payload,
+        settings.telegram_bot_token,
+        settings.telegram_login_max_age_seconds,
+    ):
+        request.session["telegram_link_status"] = "telegram_invalid"
+        return RedirectResponse("/cabinet#telegram", status_code=303)
+
+    try:
+        telegram_id = int(payload["id"])
+        result = link_telegram_account(user.id, telegram_id)
+    except Exception:
+        request.session["telegram_link_status"] = "telegram_failed"
+        return RedirectResponse("/cabinet#telegram", status_code=303)
+
+    await update_remnawave_user_after_telegram_link(
+        result.user.username,
+        result.user.expire_at,
+        telegram_id,
+    )
+    request.session["user_id"] = result.user.id
+    request.session["username"] = result.user.username
+    if result.already_linked:
+        request.session["telegram_link_status"] = "telegram_already_linked"
+    elif result.bonus_days_added:
+        request.session["telegram_link_status"] = f"telegram_linked_bonus:{result.bonus_days_added}"
+    else:
+        request.session["telegram_link_status"] = "telegram_linked"
+    return RedirectResponse("/cabinet#telegram", status_code=303)
+
+
 async def render_cabinet(request: Request):
     user = require_user(request)
     if isinstance(user, RedirectResponse):
@@ -199,6 +256,7 @@ async def render_cabinet(request: Request):
         days_left = max((expire_at - datetime.now(timezone.utc)).days, 0)
 
     bonus_days = sum(referral.bonus_days for referral in referrals)
+    telegram_link_status = request.session.pop("telegram_link_status", None)
 
     return templates.TemplateResponse(
         "cabinet.html",
@@ -213,6 +271,9 @@ async def render_cabinet(request: Request):
             "tariffs": get_tariffs(),
             "subscription_url": remnawave_user.subscription_url if remnawave_user else None,
             "public_base_url": settings.public_base_url,
+            "telegram_bot_username": settings.telegram_bot_username,
+            "telegram_link_bonus_days": settings.telegram_link_bonus_days,
+            "telegram_link_status": telegram_link_status,
         },
     )
 

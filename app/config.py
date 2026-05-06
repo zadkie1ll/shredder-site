@@ -42,6 +42,10 @@ class Settings:
     yookassa_shop_id: str | None
     yookassa_secret: str | None
     receipt_email: str
+    telegram_bot_username: str | None
+    telegram_bot_token: str | None
+    telegram_link_bonus_days: int
+    telegram_login_max_age_seconds: int
 
     @property
     def remnawave_enabled(self) -> bool:
@@ -93,6 +97,14 @@ def load_settings() -> Settings:
         yookassa_shop_id=yookassa_shop_id,
         yookassa_secret=yookassa_secret,
         receipt_email=os.getenv("SHREDDER_SITE_RECEIPT_EMAIL", "receipts@orpheous.ru"),
+        telegram_bot_username=os.getenv("SHREDDER_SITE_TELEGRAM_BOT_USERNAME"),
+        telegram_bot_token=os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN")
+        or os.getenv("MI_VPN_BOT_TOKEN"),
+        telegram_link_bonus_days=_read_int("SHREDDER_SITE_TELEGRAM_LINK_BONUS_DAYS", 7),
+        telegram_login_max_age_seconds=_read_int(
+            "SHREDDER_SITE_TELEGRAM_LOGIN_MAX_AGE_SECONDS",
+            86400,
+        ),
     )
 
 

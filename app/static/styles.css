@@ -325,7 +325,8 @@ th {
 .summary-card span,
 .cabinet-tariff span,
 .access-box span,
-.referral-link span {
+.referral-link span,
+.telegram-state {
   color: var(--muted);
   display: block;
   font-size: 12px;
@@ -513,6 +514,37 @@ th {
   margin-bottom: 16px;
 }
 
+.telegram-state {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 0;
+  min-height: 40px;
+  padding: 12px 14px;
+}
+
+.telegram-state.is-linked {
+  border-color: rgba(14, 143, 104, 0.45);
+  color: var(--accent-strong);
+}
+
+.telegram-link-box {
+  align-items: center;
+  background: #f0f4ee;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  padding: 18px;
+}
+
+.telegram-link-box p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 620px;
+}
+
 @media (max-width: 920px) {
   .tariffs,
   .dashboard-grid,
@@ -548,6 +580,11 @@ th {
   }
 
   .panel-title-row {
+    align-items: stretch;
+    display: grid;
+  }
+
+  .telegram-link-box {
     align-items: stretch;
     display: grid;
   }
