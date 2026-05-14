@@ -1,36 +1,304 @@
 {% extends "base.html" %}
 {% set title = "Shredder VPN" %}
+{% set body_class = "shredder-page" %}
 
 {% block content %}
-<section class="hero">
-  <div class="hero__content">
-    <p class="eyebrow">VPN для ежедневной работы и спокойного доступа</p>
-    <h1>Быстрый личный VPN с понятными тарифами</h1>
-    <p class="lead">Оформляйте подписку на сайте, отслеживайте срок действия и приглашайте друзей из личного кабинета.</p>
-    <div class="actions">
-      <a class="button button--primary" href="/login">Войти в кабинет</a>
-      <a class="button button--ghost" href="/register">Получить 7 дней</a>
-      <a class="button button--ghost" href="#tariffs">Смотреть тарифы</a>
+<section class="sh-hero" id="top">
+  <img class="sh-hero__logo" src="{{ url_for('static', path='/figma-assets/hero-logo.png') }}" alt="Шреддер VPN сервис">
+  <div class="sh-hero__content">
+    <h1>Shredder</h1>
+    <p class="sh-hero__tagline">- когда нужно, чтобы интернет просто работал.</p>
+    <p class="sh-hero__price">
+      Подключение за 1 минуту - <strong>149р/мес*</strong><br>
+      <span>iOS • macOS • Android • Windows • Smart TV</span>
+    </p>
+    <img class="sh-hero__rocket" src="{{ url_for('static', path='/figma-assets/rocket.png') }}" alt="">
+    <div class="sh-actions">
+      <a class="sh-button sh-button--purple" href="#tariffs">ТАРИФЫ</a>
+      <a class="sh-button sh-button--green" href="/register">ПОДКЛЮЧИТЬ</a>
     </div>
+    <p class="sh-hero__trial">При регистрации через Telegram - 7 дней бесплатного доступа</p>
   </div>
 </section>
 
-<section class="section" id="tariffs">
-  <div class="section__head">
-    <h2>Тарифы</h2>
-    <p>Для локального каркаса цены взяты из текущего `common.models.tariff`.</p>
-  </div>
-  <div class="tariffs">
-    {% for tariff in tariffs %}
-      <article class="tariff {% if tariff.highlight %}tariff--accent{% endif %}">
-        <div>
-          <h3>{{ tariff.name }}</h3>
-          <p>{{ tariff.period }}</p>
-        </div>
-        <strong>{{ tariff.price }} ₽</strong>
-        <a class="button button--full" href="/login">Выбрать</a>
-      </article>
-    {% endfor %}
+<section class="sh-benefits-wrap" aria-label="Преимущества">
+  <button class="sh-mobile-arrow sh-mobile-arrow--prev" type="button" data-mobile-prev="benefits" aria-label="Предыдущее преимущество">‹</button>
+  <button class="sh-mobile-arrow sh-mobile-arrow--next" type="button" data-mobile-next="benefits" aria-label="Следующее преимущество">›</button>
+  <div class="sh-benefits" data-mobile-carousel="benefits">
+    <article class="sh-benefit sh-benefit--security">
+      <div class="sh-benefit-visual">
+        <img class="sh-benefit-splash" src="{{ url_for('static', path='/figma-assets/benefit-splash-security.svg') }}" alt="">
+        <img class="sh-benefit-art" src="{{ url_for('static', path='/figma-assets/benefit-security.png') }}" alt="">
+      </div>
+      <h2>БЕЗОПАСНОСТЬ</h2>
+      <p>Мы не храним историю ваших посещений, вся активность остается конфиденциальной.</p>
+    </article>
+    <article class="sh-benefit sh-benefit--speed">
+      <div class="sh-benefit-visual">
+        <img class="sh-benefit-splash" src="{{ url_for('static', path='/figma-assets/benefit-splash-speed.svg') }}" alt="">
+        <img class="sh-benefit-art" src="{{ url_for('static', path='/figma-assets/benefit-speed.png') }}" alt="">
+      </div>
+      <h2>ВЫСОКАЯ СКОРОСТЬ</h2>
+      <p>Видео, сайты и приложения работают без лишних задержек.</p>
+    </article>
+    <article class="sh-benefit sh-benefit--stability">
+      <div class="sh-benefit-visual">
+        <img class="sh-benefit-splash" src="{{ url_for('static', path='/figma-assets/benefit-splash-stability.svg') }}" alt="">
+        <img class="sh-benefit-art" src="{{ url_for('static', path='/figma-assets/benefit-stability.png') }}" alt="">
+      </div>
+      <h2>СТАБИЛЬНАЯ РАБОТА</h2>
+      <p>Работает даже с мобильным интернетом. Нет необходимости подключаться к Wi-Fi.</p>
+    </article>
   </div>
 </section>
+<div class="sh-mobile-dots" data-mobile-dots="benefits" aria-hidden="true"></div>
+
+<div class="sh-tapes" aria-hidden="true">
+  <div class="sh-tape sh-tape--one">
+    <div class="sh-tape__track">
+      {% for _ in range(2) %}
+        <div class="sh-tape__group"><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span></div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="sh-tape sh-tape--two">
+    <div class="sh-tape__track sh-tape__track--reverse">
+      {% for _ in range(2) %}
+        <div class="sh-tape__group"><span>ПОДКЛЮЧАЙСЯ</span><span>ПОДКЛЮЧАЙСЯ</span><span>ПОДКЛЮЧАЙСЯ</span><span>ПОДКЛЮЧАЙСЯ</span><span>ПОДКЛЮЧАЙСЯ</span><span>ПОДКЛЮЧАЙСЯ</span></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="sh-page-bg">
+  <section class="sh-reviews" aria-labelledby="reviews-title">
+    <h2 id="reviews-title">ОТЗЫВЫ</h2>
+    <div class="sh-review-stage">
+      <button class="sh-slider-btn" type="button" data-review-prev aria-label="Предыдущий отзыв">‹</button>
+      <div class="sh-review-card">
+        <div class="sh-review-card__head">
+          <span class="sh-avatar"></span>
+          <strong data-review-author>@vladdt98</strong>
+        </div>
+        <p data-review-text>Перепробовал уже несколько сервисов до этого. Тут пока самый нормальный вариант из всего, что использовал.</p>
+        <div class="sh-rating"><span data-review-rating>5,0</span> ★★★★★</div>
+      </div>
+      <img class="sh-review-knight-mobile" src="{{ url_for('static', path='/figma-assets/review-knight-mobile.png') }}" alt="">
+      <img class="sh-review-knight" src="{{ url_for('static', path='/figma-assets/knight-laptop.png') }}" alt="">
+      <button class="sh-slider-btn" type="button" data-review-next aria-label="Следующий отзыв">›</button>
+    </div>
+    <div class="sh-dots" data-review-dots></div>
+  </section>
+
+  <section class="sh-steps" id="setup" aria-labelledby="steps-title">
+    <h2 id="steps-title">
+      <img class="sh-steps__title-img" src="{{ url_for('static', path='/figma-assets/steps-title.png') }}" alt="3 шага к безопасному интернету:">
+    </h2>
+    <ol>
+      <li>
+        <span><img class="sh-step-number-img" src="{{ url_for('static', path='/figma-assets/step-01.svg') }}" alt="01"></span>
+        <div>
+          <h3 class="sh-step-heading">Выбери тариф</h3>
+          <p>Оплати подписку на сайте или через Telegram-бот. Ты сразу получишь доступ в личный кабинет.</p>
+        </div>
+      </li>
+      <li>
+        <span><img class="sh-step-number-img" src="{{ url_for('static', path='/figma-assets/step-02.svg') }}" alt="02"></span>
+        <div>
+          <h3 class="sh-step-heading">Следуй инструкции</h3>
+          <p>Мы используем современный клиент Happ для Android / iOS, его необходимо скачать. Ссылка будет в инструкции.</p>
+        </div>
+      </li>
+      <li>
+        <span><img class="sh-step-number-img" src="{{ url_for('static', path='/figma-assets/step-03.svg') }}" alt="03"></span>
+        <div>
+          <h3 class="sh-step-heading">Включай и пользуйся</h3>
+          <p>Получаешь ключ, подключаешься и легко пользуешься интернетом как раньше.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="sh-plans" id="tariffs" aria-labelledby="tariffs-title">
+    <h2 id="tariffs-title">ТАРИФЫ:</h2>
+    <div class="sh-plan-slider">
+      <button class="sh-mobile-arrow sh-mobile-arrow--prev" type="button" data-mobile-prev="tariffs" aria-label="Предыдущий тариф">‹</button>
+      <button class="sh-mobile-arrow sh-mobile-arrow--next" type="button" data-mobile-next="tariffs" aria-label="Следующий тариф">›</button>
+      <div class="sh-plan-grid" data-mobile-carousel="tariffs">
+        {% for tariff in (tariffs[:2] + tariffs[-1:]) %}
+          <article class="sh-plan {% if tariff.highlight %}is-featured{% endif %}">
+            <img class="sh-plan__logo" src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="Шреддер VPS сервис">
+            <h3>{{ tariff.name }}</h3>
+            <strong>- {{ tariff.price }} ₽</strong>
+            <ul>
+              <li>Стабильная работа соединения.</li>
+              <li>Высокая скорость.</li>
+              <li>YouTube без рекламы.</li>
+              <li>Безлимитный трафик.</li>
+            </ul>
+            <p>*Неограниченное кол-во устройств.</p>
+            <a class="sh-button sh-button--purple" href="/register">ПОЛУЧИТЬ</a>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sh-mobile-dots" data-mobile-dots="tariffs" aria-hidden="true"></div>
+    <p class="sh-telegram"><span>Только через</span> <strong>Telegram</strong> <span>-</span> <strong>7 дней бесплатно</strong></p>
+  </section>
+
+  <section class="sh-faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">FAQ</h2>
+    <details>
+      <summary><span>01.</span> Как быстро я получу доступ после оплаты?</summary>
+      <p>Обычно доступ появляется сразу после успешной оплаты. Инструкция будет доступна в личном кабинете.</p>
+    </details>
+    <details>
+      <summary><span>02.</span> Могу ли я поделиться подпиской с семьей?</summary>
+      <p>Да, подписка рассчитана на неограниченное количество устройств в рамках личного использования.</p>
+    </details>
+    <details>
+      <summary><span>03.</span> Могу ли я сменить тариф?</summary>
+      <p>Да, можно выбрать другой срок подписки при следующем продлении.</p>
+    </details>
+    <details>
+      <summary><span>04.</span> Есть ли ограничения по скорости или трафику?</summary>
+      <p>Трафик безлимитный, а скорость зависит от сети и выбранного сервера.</p>
+    </details>
+  </section>
+</div>
+
+<footer class="sh-footer">
+  <p>ИП Свириденко С.В.<br>ИНН: 616706684677<br>ОГРН: 325619600215683</p>
+  <a href="#">Публичная оферта</a>
+  <nav>
+    <strong>Навигация</strong>
+    <a href="#setup">Как подключить</a>
+    <a href="/login">Личный кабинет</a>
+    <a href="#tariffs">Тарифы</a>
+  </nav>
+  <div>
+    <strong>Поддержка</strong>
+    <div class="sh-socials">
+      <a href="https://t.me/ShredderSUPPORT" target="_blank" rel="noopener" aria-label="Написать в Telegram @ShredderSUPPORT">
+        <img src="{{ url_for('static', path='/figma-assets/footer-telegram.png') }}" alt="">
+      </a>
+      <a href="mailto:support@orpheous.ru" aria-label="Написать на support@orpheous.ru">
+        <img src="{{ url_for('static', path='/figma-assets/footer-mail.png') }}" alt="">
+      </a>
+    </div>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const reviews = [
+    { author: "@vladdt98", text: "Перепробовал уже несколько сервисов до этого. Тут пока самый нормальный вариант из всего, что использовал.", rating: "5,0" },
+    { author: "@misha_net", text: "Подключил за пару минут, на телефоне и ноутбуке работает стабильно. Интерфейс простой, без лишней возни.", rating: "5,0" },
+    { author: "@anna_online", text: "Нравится, что есть понятная инструкция и нормальная скорость для видео и рабочих созвонов.", rating: "5,0" }
+  ];
+
+  const author = document.querySelector("[data-review-author]");
+  const text = document.querySelector("[data-review-text]");
+  const rating = document.querySelector("[data-review-rating]");
+  const dots = document.querySelector("[data-review-dots]");
+  const reviewCard = document.querySelector(".sh-review-card");
+  let reviewIndex = 0;
+
+  function renderReview() {
+    const review = reviews[reviewIndex];
+    author.textContent = review.author;
+    text.textContent = review.text;
+    rating.textContent = review.rating;
+    dots.querySelectorAll("button").forEach((dot, index) => {
+      dot.classList.toggle("is-active", index === reviewIndex);
+    });
+  }
+
+  function setReview(index) {
+    reviewIndex = (index + reviews.length) % reviews.length;
+    if (!reviewCard || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      renderReview();
+      return;
+    }
+    reviewCard.classList.add("is-fading");
+    window.setTimeout(() => {
+      renderReview();
+      reviewCard.classList.remove("is-fading");
+    }, 170);
+  }
+
+  reviews.forEach((_, index) => {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.setAttribute("aria-label", `Отзыв ${index + 1}`);
+    dot.addEventListener("click", () => setReview(index));
+    dots.append(dot);
+  });
+
+  document.querySelector("[data-review-prev]").addEventListener("click", () => {
+    setReview(reviewIndex - 1);
+  });
+
+  document.querySelector("[data-review-next]").addEventListener("click", () => {
+    setReview(reviewIndex + 1);
+  });
+
+  renderReview();
+
+  function setupMobileCarousel(name) {
+    const track = document.querySelector(`[data-mobile-carousel="${name}"]`);
+    const dots = document.querySelector(`[data-mobile-dots="${name}"]`);
+    const prev = document.querySelector(`[data-mobile-prev="${name}"]`);
+    const next = document.querySelector(`[data-mobile-next="${name}"]`);
+    if (!track || !dots) return;
+
+    const slides = Array.from(track.children).filter((child) => child.matches("article"));
+    if (!slides.length) return;
+    let activeIndex = 0;
+
+    const scrollToSlide = (index) => {
+      const safeIndex = (index + slides.length) % slides.length;
+      slides[safeIndex].scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      activeIndex = safeIndex;
+    };
+
+    slides.forEach((_, index) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.setAttribute("aria-label", `${name} ${index + 1}`);
+      dot.addEventListener("click", () => scrollToSlide(index));
+      dots.append(dot);
+    });
+
+    const update = () => {
+      const trackCenter = track.scrollLeft + track.clientWidth / 2;
+      let nearestIndex = 0;
+      let activeDistance = Infinity;
+
+      slides.forEach((slide, index) => {
+        const slideCenter = slide.offsetLeft + slide.offsetWidth / 2;
+        const distance = Math.abs(trackCenter - slideCenter);
+        if (distance < activeDistance) {
+          activeDistance = distance;
+          nearestIndex = index;
+        }
+      });
+
+      activeIndex = nearestIndex;
+      dots.querySelectorAll("button").forEach((dot, index) => {
+        dot.classList.toggle("is-active", index === activeIndex);
+      });
+    };
+
+    prev?.addEventListener("click", () => scrollToSlide(activeIndex - 1));
+    next?.addEventListener("click", () => scrollToSlide(activeIndex + 1));
+    track.addEventListener("scroll", () => requestAnimationFrame(update), { passive: true });
+    window.addEventListener("resize", update);
+    update();
+  }
+
+  setupMobileCarousel("benefits");
+  setupMobileCarousel("tariffs");
+</script>
 {% endblock %}

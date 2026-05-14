@@ -6,7 +6,17 @@ import hashlib
 import secrets
 from typing import Any
 
-from sqlalchemy import BigInteger, Column, DateTime, Integer, String, create_engine, func, select, update
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    DateTime,
+    Integer,
+    String,
+    create_engine,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -74,6 +84,14 @@ class TelegramLinkBonus(_SiteBase):
 
     user_id = Column(BigInteger, primary_key=True)
     telegram_id = Column(BigInteger, nullable=False, index=True)
+    days_added = Column(Integer, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class SiteTrialGrant(_SiteBase):
+    __tablename__ = "site_trial_grants"
+
+    user_id = Column(BigInteger, primary_key=True)
     days_added = Column(Integer, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
@@ -239,6 +257,12 @@ def create_user(username: str | None, expire_at: datetime | None, password: str)
                     password_hash=password_hash,
                 )
             )
+            session.add(
+                SiteTrialGrant(
+                    user_id=db_user.id,
+                    days_added=settings.trial_period_days,
+                )
+            )
             session.commit()
         except IntegrityError as exc:
             session.rollback()
@@ -274,15 +298,137 @@ def verify_site_password(user: SiteUser, password: str) -> bool:
         return verify_password(password, credential.password_hash)
 
 
-def _max_expire_at(*values: datetime | None) -> datetime | None:
-    normalized = [
-        value.replace(tzinfo=None) if value is not None and value.tzinfo else value
-        for value in values
-        if value is not None
-    ]
-    if not normalized:
+def _naive_utc(value: datetime | None) -> datetime | None:
+    if value is None:
         return None
-    return max(normalized)
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def _remaining_time(expire_at: datetime | None, now: datetime) -> timedelta:
+    expire_at = _naive_utc(expire_at)
+    if expire_at is None or expire_at <= now:
+        return timedelta()
+    return expire_at - now
+
+
+def _has_trial_payment(session, model, user_id: int) -> bool:
+    return (
+        session.execute(
+            select(model.id)
+            .where(model.user_id == user_id, model.is_trial_promotion.is_(True))
+            .limit(1)
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
+def _trial_time_left(
+    created_at: datetime | None,
+    days_added: int | None,
+    now: datetime,
+) -> timedelta:
+    if not created_at or not days_added or days_added <= 0:
+        return timedelta()
+
+    trial_ends_at = _naive_utc(created_at) + timedelta(days=days_added)
+    if trial_ends_at <= now:
+        return timedelta()
+    return trial_ends_at - now
+
+
+def _legacy_site_trial_time_left(session, user, now: datetime) -> timedelta:
+    identity = (
+        session.execute(
+            select(SiteIdentity)
+            .where(SiteIdentity.user_id == user.id)
+            .order_by(SiteIdentity.created_at.asc())
+            .limit(1)
+        )
+        .scalars()
+        .first()
+    )
+    if identity is None:
+        remaining = _remaining_time(user.expire_at, now)
+        if remaining <= timedelta(days=settings.trial_period_days):
+            return remaining
+        return timedelta()
+    return _trial_time_left(identity.created_at, settings.trial_period_days, now)
+
+
+def _site_trial_time_to_skip(
+    session,
+    user,
+    credential: SiteUserCredential | None,
+    now: datetime,
+) -> timedelta:
+    grant = session.get(SiteTrialGrant, user.id)
+    if grant is not None:
+        return _trial_time_left(grant.created_at, grant.days_added, now)
+    if credential is not None and user.telegram_id is not None and user.telegram_id < 0:
+        return _legacy_site_trial_time_left(session, user, now)
+    return timedelta()
+
+
+def _free_period_already_used(
+    session,
+    user,
+    credential: SiteUserCredential | None,
+    YkPayment,
+    YkRecurrentPayment,
+    now: datetime,
+) -> bool:
+    if session.get(SiteTrialGrant, user.id) is not None:
+        return True
+    if session.get(TelegramLinkBonus, user.id) is not None:
+        return True
+    if _site_trial_time_to_skip(session, user, credential, now) > timedelta():
+        return True
+    if _has_trial_payment(session, YkPayment, user.id):
+        return True
+    if _has_trial_payment(session, YkRecurrentPayment, user.id):
+        return True
+    return credential is None and user.telegram_id is not None and user.telegram_id > 0
+
+
+def _merge_single_user_site_row(
+    session,
+    model,
+    source_user_id: int,
+    target_user_id: int,
+) -> None:
+    source_row = session.get(model, source_user_id)
+    if source_row is None:
+        return
+
+    target_row = session.get(model, target_user_id)
+    if target_row is None:
+        source_row.user_id = target_user_id
+    else:
+        if hasattr(target_row, "days_added"):
+            target_row.days_added = max(
+                target_row.days_added or 0,
+                source_row.days_added or 0,
+            )
+        session.delete(source_row)
+
+
+def _merged_expire_at(
+    target_expire_at: datetime | None,
+    source_expire_at: datetime | None,
+    *,
+    now: datetime,
+    source_free_time_to_skip: timedelta,
+    bonus_days_added: int,
+) -> datetime:
+    target_remaining = _remaining_time(target_expire_at, now)
+    source_remaining = _remaining_time(source_expire_at, now)
+    source_remaining = max(
+        source_remaining - source_free_time_to_skip,
+        timedelta(),
+    )
+    return now + target_remaining + source_remaining + timedelta(days=bonus_days_added)
 
 
 def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkResult:
@@ -322,6 +468,29 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
         site_login = (site_user.username or str(site_user.id)).strip().lower()
         source_credential = session.get(SiteUserCredential, site_user.id)
         target_credential = session.get(SiteUserCredential, target_user.id)
+        now = datetime.utcnow()
+        source_free_time_to_skip = (
+            _site_trial_time_to_skip(session, site_user, source_credential, now)
+            if source_user is not None
+            else timedelta()
+        )
+        free_period_used = _free_period_already_used(
+            session,
+            target_user,
+            target_credential,
+            YkPayment,
+            YkRecurrentPayment,
+            now,
+        )
+        if source_user is not None:
+            free_period_used = free_period_used or _free_period_already_used(
+                session,
+                source_user,
+                source_credential,
+                YkPayment,
+                YkRecurrentPayment,
+                now,
+            )
         password_hash = (
             source_credential.password_hash
             if source_credential is not None
@@ -399,14 +568,16 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
                     existing.days_added = (existing.days_added or 0) + (bonus.days_added or 0)
                     session.delete(bonus)
 
+            _merge_single_user_site_row(session, SiteTrialGrant, source_user.id, target_user.id)
+            _merge_single_user_site_row(session, TelegramLinkBonus, source_user.id, target_user.id)
+            session.flush()
             source_user.telegram_id = _synthetic_telegram_id(
                 f"merged:{source_user.id}:{telegram_id}"
             )
 
-        combined_expire_at = _max_expire_at(target_user.expire_at, site_user.expire_at)
         bonus = session.get(TelegramLinkBonus, target_user.id)
         bonus_days_added = 0
-        if bonus is None:
+        if bonus is None and not free_period_used:
             bonus_days_added = settings.telegram_link_bonus_days
             session.add(
                 TelegramLinkBonus(
@@ -415,10 +586,21 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
                     days_added=bonus_days_added,
                 )
             )
+            free_period_used = True
 
-        if combined_expire_at is None or combined_expire_at < datetime.utcnow():
-            combined_expire_at = datetime.utcnow()
-        target_user.expire_at = combined_expire_at + timedelta(days=bonus_days_added)
+        if source_user is not None:
+            target_user.expire_at = _merged_expire_at(
+                target_user.expire_at,
+                site_user.expire_at,
+                now=now,
+                source_free_time_to_skip=source_free_time_to_skip,
+                bonus_days_added=bonus_days_added,
+            )
+        else:
+            base_expire_at = _naive_utc(target_user.expire_at)
+            if base_expire_at is None or base_expire_at < now:
+                base_expire_at = now
+            target_user.expire_at = base_expire_at + timedelta(days=bonus_days_added)
         target_user.telegram_id = telegram_id
 
         if target_credential is None and password_hash:
