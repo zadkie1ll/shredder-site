@@ -711,6 +711,13 @@ th {
   font-size: 0.86em;
 }
 
+.sh-hero__price small {
+  display: inline-block;
+  font-size: 0.62em;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
 .sh-hero__rocket {
   filter: drop-shadow(0 0 24px rgba(167, 251, 37, 0.42));
   height: auto;
@@ -1019,16 +1026,35 @@ th {
 }
 
 .sh-slider-btn {
+  align-items: center;
   background: rgba(0, 0, 0, 0.42);
   border: 2px solid rgba(255, 255, 255, 0.64);
   border-radius: 50%;
   color: white;
   cursor: pointer;
-  font-size: 40px;
+  display: flex;
+  font-size: 0;
   height: 44px;
+  justify-content: center;
   line-height: 1;
+  padding: 0;
   width: 44px;
   z-index: 3;
+}
+
+.sh-slider-btn::before {
+  display: block;
+  font-size: 34px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.sh-slider-btn[data-review-prev]::before {
+  content: "‹";
+}
+
+.sh-slider-btn[data-review-next]::before {
+  content: "›";
 }
 
 .sh-dots {
@@ -1205,18 +1231,21 @@ th {
 }
 
 .sh-telegram {
-  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
-  font-size: clamp(24px, 2vw, 40px);
+  color: white;
+  font-family: ljTurtlesTMNT, Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(24px, 2vw, 39px);
   letter-spacing: 0;
+  line-height: 1.05;
   margin: 44px 0 0;
   text-align: center;
-  text-shadow: 0 4px 16px #000, 3px 3px 0 rgba(119, 31, 227, 0.58);
-  transform: rotate(-1deg);
+  text-shadow: 0 4px 16.1px #000;
+  transform: none;
 }
 
 .sh-telegram strong {
+  color: var(--sh-green);
   display: inline-block;
-  transform: rotate(1.5deg);
+  transform: none;
 }
 
 .sh-faq {
@@ -1269,16 +1298,18 @@ th {
 
 .sh-footer {
   align-items: start;
-  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0.78) 58%, #000 100%), url("/static/figma-assets/city-depth.png");
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.82) 58%, #000 100%), url("/static/figma-assets/city-depth.png");
   background-position: center bottom;
   background-repeat: no-repeat;
-  background-size: min(1920px, 100%) auto;
+  background-size: cover;
   color: white;
   display: grid;
   gap: 40px;
   grid-template-columns: 1.5fr 1fr 1fr 0.8fr;
+  margin-left: calc(50% - 50vw);
   min-height: 250px;
   padding: 76px clamp(28px, 12vw, 240px) 64px;
+  width: 100vw;
 }
 
 .sh-footer p,
@@ -1340,7 +1371,7 @@ th {
   }
 
   .sh-hero {
-    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0.55) 58%, #020202 100%), url("/static/figma-assets/hero-mobile.png");
+    background-image: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.16) 58%, rgba(2, 2, 2, 0.86) 100%), url("/static/figma-assets/hero-mobile.png");
     background-position: center top;
     min-height: 800px;
     padding: 0 40px;
@@ -1738,53 +1769,32 @@ th {
   }
 
   .sh-review-stage {
-    grid-template-columns: 1fr;
+    grid-template-columns: 24px minmax(0, 294px) 24px;
+    justify-content: center;
     margin-top: 12px;
     min-width: 0;
-    position: relative;
   }
 
   .sh-slider-btn {
-    align-items: center;
-    display: flex;
-    font-size: 20px;
     height: 24px;
-    justify-content: center;
-    padding: 0 0 2px;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
     width: 24px;
   }
 
-  .sh-slider-btn[data-review-prev] {
-    left: 6px;
-  }
-
-  .sh-slider-btn[data-review-next] {
-    left: min(272px, calc(100% - 30px));
-    right: auto;
+  .sh-slider-btn::before {
+    font-size: 20px;
+    transform: translateY(-1px);
   }
 
   .sh-review-card {
-    margin: 0 auto 0 0;
+    margin: 0;
     min-height: 0;
     min-width: 0;
     padding: 18px 30px;
-    width: min(100%, 294px);
     z-index: 2;
   }
 
   .sh-review-knight-mobile {
-    display: block;
-    filter: drop-shadow(0 0 18px rgba(167, 251, 37, 0.18));
-    height: auto;
-    pointer-events: none;
-    position: absolute;
-    right: -40px;
-    top: -82px;
-    width: 184px;
-    z-index: 1;
+    display: none;
   }
 
   .sh-reviews h2,
