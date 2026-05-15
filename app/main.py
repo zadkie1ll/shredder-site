@@ -13,6 +13,7 @@ from app.one_click import build_one_click_links
 from app.payments import create_payment_url
 from app.remnawave import (
     create_remnawave_user,
+    ensure_remnawave_user_internal_squads,
     get_remnawave_user,
     update_remnawave_user_after_telegram_link,
 )
@@ -275,6 +276,13 @@ async def render_cabinet(request: Request):
 
     referrals = get_referrals(user)
     remnawave_user = await get_remnawave_user(user.username)
+    if remnawave_user and settings.internal_squads_uuids:
+        required_squads = set(settings.internal_squads_uuids)
+        current_squads = set(remnawave_user.active_internal_squads)
+        if not required_squads.issubset(current_squads):
+            remnawave_user = (
+                await ensure_remnawave_user_internal_squads(user.username)
+            ) or remnawave_user
     expire_at = remnawave_user.expire_at if remnawave_user else user.expire_at
     days_left = None
     if expire_at:
