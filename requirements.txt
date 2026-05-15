@@ -10,3 +10,4 @@ protobuf==6.33.2
 pydantic==2.13.3
 wrapt==2.0.1
 yookassa==3.7.0
+cryptography==46.0.3

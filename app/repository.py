@@ -10,6 +10,7 @@ from sqlalchemy import (
     BigInteger,
     Column,
     DateTime,
+    delete,
     Integer,
     String,
     create_engine,
@@ -53,6 +54,15 @@ class TelegramLinkResult:
     bonus_days_added: int
     merged_existing_telegram_user: bool
     already_linked: bool
+
+
+@dataclass(frozen=True)
+class AutopayInfo:
+    enabled: bool
+    amount: int | None = None
+    currency: str | None = None
+    subscription_period: str | None = None
+    captured_at: datetime | None = None
 
 
 _engine = create_engine(settings.database_url, pool_pre_ping=True) if settings.database_url else None
@@ -296,6 +306,42 @@ def verify_site_password(user: SiteUser, password: str) -> bool:
         if credential is None:
             return False
         return verify_password(password, credential.password_hash)
+
+
+def get_autopay_info(user: SiteUser) -> AutopayInfo:
+    if not database_enabled():
+        return AutopayInfo(enabled=False)
+
+    _, _, _, YkRecurrentPayment = _common_models()
+    with _SessionLocal() as session:
+        recurrent = session.execute(
+            select(YkRecurrentPayment).where(YkRecurrentPayment.user_id == user.id)
+        ).scalar_one_or_none()
+        if recurrent is None:
+            return AutopayInfo(enabled=False)
+        return AutopayInfo(
+            enabled=True,
+            amount=recurrent.amount,
+            currency=recurrent.currency,
+            subscription_period=recurrent.subscription_period,
+            captured_at=recurrent.captured_at,
+        )
+
+
+def cancel_autopay(user: SiteUser) -> bool:
+    if not database_enabled():
+        return False
+
+    _, User, _, YkRecurrentPayment = _common_models()
+    with _SessionLocal() as session:
+        deleted = session.execute(
+            delete(YkRecurrentPayment).where(YkRecurrentPayment.user_id == user.id)
+        ).rowcount
+        session.execute(
+            update(User).where(User.id == user.id).values(autopay_allow=False)
+        )
+        session.commit()
+        return bool(deleted)
 
 
 def _naive_utc(value: datetime | None) -> datetime | None:

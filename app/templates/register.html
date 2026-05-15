@@ -1,29 +1,43 @@
 {% extends "base.html" %}
 {% set title = "Регистрация | Shredder VPN" %}
+{% set body_class = "shredder-page login-page" %}
 
 {% block content %}
-<section class="auth">
-  <form class="auth-card" method="post" action="/register">
-    <h1>Регистрация</h1>
-    <p class="muted">Создаст пользователя в Remnawave и выдаст пробный доступ на 7 дней.</p>
+<section class="sh-login sh-login--register" aria-labelledby="register-title">
+  <div class="sh-login__visual" aria-hidden="true">
+    <img class="sh-login__logo" src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="">
+    <img class="sh-login__knight" src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
+  </div>
+
+  <form class="sh-login-card" method="post" action="/register">
+    <p class="sh-login-card__eyebrow">7 дней бесплатно</p>
+    <h1 id="register-title">Регистрация</h1>
+    <p class="sh-login-card__lead">Создай доступ к Shredder VPN и сразу переходи в личный кабинет с инструкциями.</p>
+
     {% if error %}
-      <div class="alert">{{ error }}</div>
+      <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
-    <label>
-      Логин
+
+    <label class="sh-login-field">
+      <span>Логин</span>
       <input type="text" name="username" autocomplete="username" placeholder="Можно оставить пустым">
     </label>
-    <label>
-      Пароль
-      <input type="password" name="password" autocomplete="new-password" minlength="6" required>
+
+    <label class="sh-login-field">
+      <span>Пароль</span>
+      <input type="password" name="password" autocomplete="new-password" placeholder="Минимум 6 символов" minlength="6" required>
     </label>
-    <label>
-      Повтори пароль
-      <input type="password" name="password_repeat" autocomplete="new-password" minlength="6" required>
+
+    <label class="sh-login-field">
+      <span>Повтори пароль</span>
+      <input type="password" name="password_repeat" autocomplete="new-password" placeholder="Еще раз пароль" minlength="6" required>
     </label>
-    <button class="button button--primary button--full" type="submit">Создать доступ</button>
-    <div class="auth-links">
-      <a href="/login">Уже есть доступ</a>
+
+    <button class="sh-button sh-button--green sh-login-submit" type="submit">СОЗДАТЬ ДОСТУП</button>
+
+    <div class="sh-login-card__links">
+      <span>Уже есть аккаунт?</span>
+      <a href="/login">Войти</a>
     </div>
   </form>
 </section>

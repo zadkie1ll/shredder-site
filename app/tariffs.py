@@ -24,7 +24,6 @@ def get_tariffs() -> list[dict]:
     except ImportError:
         return [
             {"name": "1 месяц", "price": 249, "period": "30 дней", "highlight": False},
-            {"name": "3 месяца", "price": 599, "period": "90 дней", "highlight": True},
             {"name": "6 месяцев", "price": 999, "period": "180 дней", "highlight": False},
             {"name": "1 год", "price": 1799, "period": "360 дней", "highlight": False},
         ]
@@ -33,6 +32,8 @@ def get_tariffs() -> list[dict]:
     for tariff in ALL_TARIFFS:
         if tariff.subscription_period.days < 30:
             continue
+        if tariff.subscription_period.days == 90:
+            continue
         name = tariff_to_human_str(tariff) or _period_to_text(tariff.subscription_period)
         tariffs.append(
             {
@@ -40,7 +41,7 @@ def get_tariffs() -> list[dict]:
                 "price": tariff.price,
                 "period": _period_to_text(tariff.subscription_period),
                 "db_tariff_id": tariff.db_tariff_id,
-                "highlight": tariff.subscription_period.days == 90,
+                "highlight": False,
             }
         )
     return tariffs

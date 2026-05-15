@@ -1,25 +1,38 @@
 {% extends "base.html" %}
 {% set title = "Вход | Shredder VPN" %}
+{% set body_class = "shredder-page login-page" %}
 
 {% block content %}
-<section class="auth">
-  <form class="auth-card" method="post" action="/login">
-    <h1>Вход</h1>
-    <p class="muted">Введи username и пароль, который был задан при создании доступа.</p>
+<section class="sh-login" aria-labelledby="login-title">
+  <div class="sh-login__visual" aria-hidden="true">
+    <img class="sh-login__logo" src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="">
+    <img class="sh-login__knight" src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
+  </div>
+
+  <form class="sh-login-card" method="post" action="/login">
+    <p class="sh-login-card__eyebrow">Личный кабинет</p>
+    <h1 id="login-title">Войти</h1>
+    <p class="sh-login-card__lead">Введи логин и пароль, чтобы открыть подписку, инструкции и продление доступа.</p>
+
     {% if error %}
-      <div class="alert">{{ error }}</div>
+      <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
-    <label>
-      Логин
-      <input type="text" name="username" autocomplete="username" required>
+
+    <label class="sh-login-field">
+      <span>Логин</span>
+      <input type="text" name="username" autocomplete="username" placeholder="username" required>
     </label>
-    <label>
-      Пароль
-      <input type="password" name="password" autocomplete="current-password" required>
+
+    <label class="sh-login-field">
+      <span>Пароль</span>
+      <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
     </label>
-    <button class="button button--primary button--full" type="submit">Войти</button>
-    <div class="auth-links">
-      <a href="/register">Создать пробный доступ</a>
+
+    <button class="sh-button sh-button--green sh-login-submit" type="submit">ВОЙТИ</button>
+
+    <div class="sh-login-card__links">
+      <span>Еще нет доступа?</span>
+      <a href="/register">Получить 7 дней бесплатно</a>
     </div>
   </form>
 </section>

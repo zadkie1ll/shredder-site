@@ -1,192 +1,547 @@
 {% extends "base.html" %}
 {% set title = "Личный кабинет | Shredder VPN" %}
+{% set body_class = "shredder-page sh-cabinet-page" %}
 
 {% block content %}
-<section class="cabinet-shell">
-  <aside class="cabinet-rail">
-    <div>
-      <p class="rail-kicker">Личный кабинет</p>
-      <h1>{{ user["display_name"] }}</h1>
+<section class="sh-cabinet" data-cabinet-tabs>
+  <aside class="sh-cabinet-sidebar">
+    <a class="sh-cabinet-logo" href="/">
+      <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder VPN">
+    </a>
+
+    <div class="sh-cabinet-user">
+      <img src="{{ url_for('static', path='/figma-assets/review-knight-mobile.png') }}" alt="">
+      <div>
+        <span>Личный кабинет</span>
+        <strong>{{ user["display_name"] }}</strong>
+      </div>
     </div>
-    <nav class="rail-nav" aria-label="Разделы кабинета">
-      <a href="#setup">Установка</a>
-      <a href="#subscription">Подписка</a>
-      <a href="#telegram">Telegram</a>
-      <a href="#referrals">Рефералы</a>
+
+    <button class="sh-cabinet-menu-toggle" type="button" data-cabinet-menu-toggle aria-expanded="false" aria-controls="cabinet-nav">
+      <span></span>
+      <span></span>
+      <span></span>
+      <strong>Разделы</strong>
+    </button>
+
+    <nav class="sh-cabinet-nav" id="cabinet-nav" aria-label="Разделы кабинета" data-cabinet-nav>
+      <div class="sh-cabinet-nav__head">
+        <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder VPN">
+        <span>Меню</span>
+      </div>
+      <a href="#overview" data-cabinet-tab="overview" class="is-active">Обзор</a>
+      <a href="#subscription" data-cabinet-tab="subscription">Подписка</a>
+      <a href="#setup" data-cabinet-tab="setup">Установка</a>
+      <a href="#bonuses" data-cabinet-tab="bonuses">Бонусы</a>
+      <a href="#referrals" data-cabinet-tab="referrals">Рефералы</a>
     </nav>
-    <a class="rail-logout" href="/logout">Выйти</a>
+    <button class="sh-cabinet-menu-backdrop" type="button" data-cabinet-menu-backdrop aria-label="Закрыть меню"></button>
+
+    <a class="sh-cabinet-logout" href="/logout">Выйти</a>
   </aside>
 
-  <div class="cabinet-workspace">
-    <section class="cabinet-summary" id="subscription">
-      <div class="summary-card summary-card--dark">
-        <span>Статус подписки</span>
-        {% if expire_at %}
-          <strong>{{ days_left }} дн.</strong>
-          <p>Активна до {{ expire_at.strftime("%d.%m.%Y") }}</p>
-        {% else %}
-          <strong>0 дн.</strong>
-          <p>Подписка не активна</p>
-        {% endif %}
+  <div class="sh-cabinet-main">
+    <header class="sh-cabinet-top">
+      <div>
+        <p>Shredder VPN</p>
+        <h1 data-cabinet-title>Обзор</h1>
       </div>
-      <div class="summary-card">
-        <span>Пользователь</span>
-        <strong>{{ user["username"] }}</strong>
-        <p>Берем из общей таблицы users</p>
-      </div>
-      <div class="summary-card">
-        <span>Бонусные дни</span>
-        <strong>+{{ bonus_days }}</strong>
-        <p>За приглашенных клиентов</p>
-      </div>
-    </section>
+      <img src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
+    </header>
 
-    <section class="cabinet-panel" aria-labelledby="plans-title">
-      <div class="panel-title-row">
-        <div>
-          <p class="section-label">Управление подпиской</p>
-          <h2 id="plans-title">Продлить доступ</h2>
+    <div class="sh-cabinet-panels">
+      <section class="sh-cabinet-panel is-active" id="overview" data-cabinet-panel="overview" aria-labelledby="overview-title">
+        <div class="sh-panel-head">
+          <div>
+            <p>Состояние доступа</p>
+            <h2 id="overview-title">Все важное в одном месте</h2>
+          </div>
+          <a class="sh-mini-button" href="#setup" data-cabinet-tab="setup">Открыть инструкцию</a>
         </div>
-        <a class="button button--primary" href="/#tariffs">Все тарифы</a>
-      </div>
-      <div class="cabinet-tariffs">
-        {% for tariff in tariffs %}
-          <article class="cabinet-tariff {% if tariff.highlight %}is-selected{% endif %}">
-            <span>{{ tariff.name }}</span>
-            <strong>{{ tariff.price }} ₽</strong>
-            <p>{{ tariff.period }}</p>
-            <form method="post" action="/cabinet/pay">
-              <input type="hidden" name="tariff_id" value="{{ tariff.db_tariff_id }}">
-              <button type="submit">Выбрать</button>
-            </form>
-          </article>
-        {% endfor %}
-      </div>
-    </section>
 
-    <section class="cabinet-panel" id="setup" aria-labelledby="setup-title">
-      <div class="panel-title-row">
-        <div>
-          <p class="section-label">Установка</p>
-          <h2 id="setup-title">Подключение VPN</h2>
-        </div>
-        <button class="button button--primary" type="button" title="Выдачу ключа подключим после интеграции">Скопировать ключ</button>
-      </div>
-
-      <div class="install-layout">
-        <div class="access-box">
-          <span>Ссылка подписки</span>
-          <code>{{ subscription_url or "Будет доступна после подключения RWMS" }}</code>
-        </div>
-        <ol class="install-steps">
-          <li>
-            <strong>Скачай приложение</strong>
-            <p>Для первого этапа оставляем Android-сценарий: Happ или v2RayNG.</p>
-          </li>
-          <li>
-            <strong>Добавь подписку</strong>
-            <p>Скопируй ссылку подписки из кабинета и импортируй ее в приложение.</p>
-          </li>
-          <li>
-            <strong>Включи подключение</strong>
-            <p>Открой приложение, выбери профиль Shredder VPN и нажми подключиться.</p>
-          </li>
-        </ol>
-      </div>
-    </section>
-
-    <section class="cabinet-panel" id="telegram" aria-labelledby="telegram-title">
-      <div class="panel-title-row">
-        <div>
-          <p class="section-label">Telegram</p>
-          <h2 id="telegram-title">Привязка аккаунта</h2>
-        </div>
-        <span class="telegram-state {% if user['telegram_id'] and user['telegram_id'] > 0 %}is-linked{% endif %}">
-          {% if user["telegram_id"] and user["telegram_id"] > 0 %}
-            Привязан
-          {% else %}
-            Не привязан
-          {% endif %}
-        </span>
-      </div>
-
-      {% if telegram_link_status %}
-        <div class="alert">
-          {% if telegram_link_status.startswith("telegram_linked_bonus:") %}
-            Telegram привязан. Бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен.
-          {% elif telegram_link_status == "telegram_linked" %}
-            Telegram привязан.
-          {% elif telegram_link_status == "telegram_already_linked" %}
-            Этот Telegram уже привязан к аккаунту.
-          {% elif telegram_link_status == "telegram_invalid" %}
-            Не удалось проверить вход через Telegram. Попробуй еще раз.
-          {% elif telegram_link_status == "telegram_not_configured" %}
-            Привязка Telegram пока не настроена.
-          {% else %}
-            Не удалось привязать Telegram. Попробуй позже.
-          {% endif %}
-        </div>
-      {% endif %}
-
-      <div class="telegram-link-box">
-        <div>
-          <strong>+{{ telegram_link_bonus_days }} дней за привязку Telegram</strong>
-          <p>Сайт объединит доступ с аккаунтом бота, если он уже существует, и сохранит вход по этому логину.</p>
-        </div>
-        {% if telegram_bot_username %}
-          <script
-            async
-            src="https://telegram.org/js/telegram-widget.js?22"
-            data-telegram-login="{{ telegram_bot_username }}"
-            data-size="large"
-            data-auth-url="{{ public_base_url }}/cabinet/link/telegram/callback"
-            data-request-access="write">
-          </script>
-        {% else %}
-          <button class="button button--primary" type="button" disabled>Telegram не настроен</button>
-        {% endif %}
-      </div>
-    </section>
-
-    <section class="cabinet-panel" id="referrals" aria-labelledby="referrals-title">
-      <div class="panel-title-row">
-        <div>
-          <p class="section-label">Рефералы</p>
-          <h2 id="referrals-title">Приглашения и бонусы</h2>
-        </div>
-        <button class="button button--primary" type="button" title="Копирование ссылки подключим следующим шагом">Копировать ссылку</button>
-      </div>
-
-      <div class="referral-link">
-        <span>Твоя ссылка</span>
-        <code>{{ public_base_url }}/ref/{{ user["username"] }}</code>
-      </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Клиент</th>
-              <th>Статус</th>
-              <th>Бонус</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for referral in referrals %}
-              <tr>
-                <td>{{ referral["username"] }}</td>
-                <td>{{ referral["status"] }}</td>
-                <td>{{ referral["bonus_days"] }} дн.</td>
-              </tr>
+        <div class="sh-cabinet-stats">
+          <article class="sh-stat-card sh-stat-card--accent">
+            <span>Подписка</span>
+            {% if expire_at %}
+              <strong>{{ days_left }} дн.</strong>
+              <p>Активна до {{ expire_at.strftime("%d.%m.%Y") }}</p>
             {% else %}
+              <strong>0 дн.</strong>
+              <p>Подписка не активна</p>
+            {% endif %}
+          </article>
+          <article class="sh-stat-card">
+            <span>Пользователь</span>
+            <strong class="sh-stat-card__username">{{ user["username"] }}</strong>
+            <p>Логин для входа на сайт</p>
+          </article>
+          <article class="sh-stat-card">
+            <span>Бонусы</span>
+            <strong>+{{ bonus_days }}</strong>
+            <p>Дней за приглашения</p>
+          </article>
+        </div>
+
+        <div class="sh-cabinet-split">
+          <article class="sh-access-preview">
+            <span>Ссылка подписки</span>
+            <code>{{ subscription_url or "Будет доступна после подключения RWMS" }}</code>
+          </article>
+          <article class="sh-access-preview sh-access-preview--visual">
+            <img src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="">
+            <div>
+              <strong>Быстрый старт</strong>
+              <p>Скопируй ссылку подписки и добавь ее в приложение из инструкции.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="sh-cabinet-panel" id="subscription" data-cabinet-panel="subscription" aria-labelledby="subscription-title">
+        <div class="sh-panel-head">
+          <div>
+            <p>Управление подпиской</p>
+            <h2 id="subscription-title">Продлить доступ</h2>
+          </div>
+        </div>
+
+        <div class="sh-cabinet-tariffs">
+          {% for tariff in tariffs %}
+            <article class="sh-cabinet-tariff {% if tariff.highlight %}is-selected{% endif %}">
+              <img src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="">
+              <span>{{ tariff.name }}</span>
+              <strong>{{ tariff.price }} ₽</strong>
+              <p>{{ tariff.period }}</p>
+              <form method="post" action="/cabinet/pay">
+                <input type="hidden" name="tariff_id" value="{{ tariff.db_tariff_id }}">
+                <button type="submit">Выбрать</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+
+        {% if autopay_status %}
+          <div class="sh-login-alert">
+            {% if autopay_status == "canceled" %}
+              Автоплатеж отключен. Подписка останется активной до конца оплаченного периода.
+            {% elif autopay_status == "not_found" %}
+              Активный автоплатеж не найден.
+            {% else %}
+              Подтверди отключение автоплатежа.
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if autopay_info.enabled %}
+          <section class="sh-autopay-card" data-autopay-card aria-labelledby="autopay-title">
+            <div>
+              <span>Автоплатеж</span>
+              <strong id="autopay-title">Автопродление активно</strong>
+              <p>
+                Следующие списания выполняются автоматически.
+                {% if autopay_info.amount and autopay_info.currency %}
+                  Текущий платеж: {{ autopay_info.amount }} {{ autopay_info.currency }}.
+                {% endif %}
+              </p>
+            </div>
+            <button class="sh-mini-button sh-mini-button--danger" type="button" data-autopay-open>Отключить</button>
+            <form class="sh-autopay-confirm" method="post" action="/cabinet/autopay/cancel" data-autopay-confirm>
+              <input type="hidden" name="confirm" value="yes">
+              <p>Отключить автопродление? Доступ не пропадет сразу, но следующий платеж не будет создан.</p>
+              <div>
+                <button class="sh-mini-button sh-mini-button--danger" type="submit">Да, отключить</button>
+                <button class="sh-mini-button" type="button" data-autopay-close>Оставить</button>
+              </div>
+            </form>
+          </section>
+        {% endif %}
+      </section>
+
+      <section class="sh-cabinet-panel" id="setup" data-cabinet-panel="setup" aria-labelledby="setup-title">
+        <div class="sh-panel-head">
+          <div>
+            <p>Установка</p>
+            <h2 id="setup-title">Подключение VPN</h2>
+          </div>
+          <button class="sh-mini-button" type="button" data-copy-active-key>Скопировать ключ</button>
+        </div>
+
+        <div class="sh-install" data-install-root>
+          <div class="sh-platform-tabs" role="tablist" aria-label="Выбор платформы">
+            <button type="button" data-platform-tab="android" class="is-active">Android</button>
+            <button type="button" data-platform-tab="ios">iOS</button>
+            <button type="button" data-platform-tab="macos">macOS</button>
+            <button type="button" data-platform-tab="windows">Windows</button>
+          </div>
+
+          <div class="sh-install-panel is-active" data-platform-panel="android">
+            <span>Android</span>
+            <strong>Для подключения</strong>
+            <ol>
+              <li>Скачайте <a href="https://play.google.com/store/apps/details?id=com.happproxy&hl=ru" target="_blank" rel="noopener">Happ</a> или <a href="https://github.com/FlyFrg/Happ_android_update/releases/latest/download/Happ.apk" target="_blank" rel="noopener">APK-файл</a>.</li>
+              <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
+            </ol>
+            {% if one_click_links %}
+              <a class="sh-mini-button" href="{{ one_click_links.happ }}">Подключиться в 1 клик</a>
+            {% else %}
+              <button class="sh-mini-button" type="button" disabled>Будет доступно после подключения RWMS</button>
+            {% endif %}
+            <div class="sh-manual-key">
+              <p>Если автоматическая настройка не сработала, скопируйте ключ и вставьте его в Happ через кнопку Вставить/Из буфера.</p>
+              <code data-copy-text="{{ one_click_links.happ_key if one_click_links else '' }}">{{ one_click_links.happ_key if one_click_links else "Будет доступно после подключения RWMS" }}</code>
+              <button class="sh-copy-button" type="button" data-copy-nearest {% if not one_click_links %}disabled{% endif %}>Скопировать ключ</button>
+            </div>
+          </div>
+
+          <div class="sh-install-panel" data-platform-panel="ios">
+            <span>iOS</span>
+            <strong>Для подключения</strong>
+            <ol>
+              <li>Скачайте <a href="https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973" target="_blank" rel="noopener">Happ</a> для России или <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" rel="noopener">Happ</a> для других регионов.</li>
+              <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
+            </ol>
+            {% if one_click_links %}
+              <a class="sh-mini-button" href="{{ one_click_links.happ }}">Подключиться в 1 клик</a>
+            {% else %}
+              <button class="sh-mini-button" type="button" disabled>Будет доступно после подключения RWMS</button>
+            {% endif %}
+            <div class="sh-manual-key">
+              <p>Если автоматическая настройка не сработала, скопируйте ключ и вставьте его в Happ через кнопку Вставить/Из буфера.</p>
+              <code data-copy-text="{{ one_click_links.happ_key if one_click_links else '' }}">{{ one_click_links.happ_key if one_click_links else "Будет доступно после подключения RWMS" }}</code>
+              <button class="sh-copy-button" type="button" data-copy-nearest {% if not one_click_links %}disabled{% endif %}>Скопировать ключ</button>
+            </div>
+          </div>
+
+          <div class="sh-install-panel" data-platform-panel="macos">
+            <span>macOS</span>
+            <strong>Для подключения</strong>
+            <ol>
+              <li>Скачайте <a href="https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973" target="_blank" rel="noopener">Happ</a> для России или <a href="https://apps.apple.com/us/app/happ-proxy-utility/id6504287215" target="_blank" rel="noopener">Happ</a> для других регионов.</li>
+              <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
+            </ol>
+            {% if one_click_links %}
+              <a class="sh-mini-button" href="{{ one_click_links.happ }}">Подключиться в 1 клик</a>
+            {% else %}
+              <button class="sh-mini-button" type="button" disabled>Будет доступно после подключения RWMS</button>
+            {% endif %}
+            <div class="sh-manual-key">
+              <p>Если автоматическая настройка не сработала, скопируйте ключ и вставьте его в Happ через кнопку Вставить/Из буфера.</p>
+              <code data-copy-text="{{ one_click_links.happ_key if one_click_links else '' }}">{{ one_click_links.happ_key if one_click_links else "Будет доступно после подключения RWMS" }}</code>
+              <button class="sh-copy-button" type="button" data-copy-nearest {% if not one_click_links %}disabled{% endif %}>Скопировать ключ</button>
+            </div>
+          </div>
+
+          <div class="sh-install-panel" data-platform-panel="windows">
+            <span>Windows</span>
+            <strong>Для настройки VPN на Windows</strong>
+            <ol>
+              <li>Скачайте <a href="https://github.com/pluralplay/FlClashX/releases/download/v0.2.1/FlClashX-0.2.1-windows-amd64-setup.exe" target="_blank" rel="noopener">FlClash</a>.</li>
+              <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
+              <li>Нажмите кнопку включения в нижнем правом углу. Выбрать локацию можно внутри раздела Прокси.</li>
+            </ol>
+            {% if one_click_links %}
+              <a class="sh-mini-button" href="{{ one_click_links.flclash }}">Подключиться в 1 клик</a>
+            {% else %}
+              <button class="sh-mini-button" type="button" disabled>Будет доступно после подключения RWMS</button>
+            {% endif %}
+            <div class="sh-manual-key">
+              <p>Если автоматическая настройка не сработала, импортируйте обычную ссылку подписки вручную.</p>
+              <code data-copy-text="{{ subscription_url or '' }}">{{ subscription_url or "Будет доступна после подключения RWMS" }}</code>
+              <button class="sh-copy-button" type="button" data-copy-nearest {% if not subscription_url %}disabled{% endif %}>Скопировать ссылку</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sh-cabinet-panel" id="bonuses" data-cabinet-panel="bonuses" aria-labelledby="bonuses-title">
+        <div class="sh-panel-head">
+          <div>
+            <p>Бонусы</p>
+            <h2 id="bonuses-title">Доступные бонусы</h2>
+          </div>
+        </div>
+
+        {% if telegram_link_status %}
+          <div class="sh-login-alert">
+            {% if telegram_link_status.startswith("telegram_linked_bonus:") %}
+              Telegram привязан. Бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен.
+            {% elif telegram_link_status == "telegram_linked" %}
+              Telegram привязан.
+            {% elif telegram_link_status == "telegram_already_linked" %}
+              Этот Telegram уже привязан к аккаунту.
+            {% elif telegram_link_status == "telegram_invalid" %}
+              Не удалось проверить вход через Telegram. Попробуй еще раз.
+            {% elif telegram_link_status == "telegram_not_configured" %}
+              Привязка Telegram пока не настроена.
+            {% else %}
+              Не удалось привязать Telegram. Попробуй позже.
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <div class="sh-telegram-panel">
+          <img src="{{ url_for('static', path='/figma-assets/footer-telegram.png') }}" alt="">
+          <div>
+            <strong>+{{ telegram_link_bonus_days }} дней за привязку Telegram</strong>
+            <p>Сайт объединит доступ с аккаунтом бота, если он уже существует, и сохранит вход по этому логину.</p>
+          </div>
+          {% if user["telegram_id"] and user["telegram_id"] > 0 %}
+            <button class="sh-mini-button sh-mini-button--earned" type="button" disabled>Бонус получен</button>
+          {% elif telegram_bot_username %}
+            <script
+              async
+              src="https://telegram.org/js/telegram-widget.js?22"
+              data-telegram-login="{{ telegram_bot_username }}"
+              data-size="medium"
+              data-auth-url="{{ public_base_url }}/cabinet/link/telegram/callback"
+              data-request-access="write">
+            </script>
+          {% else %}
+            <button class="sh-mini-button" type="button" disabled>Привязать</button>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="sh-cabinet-panel" id="referrals" data-cabinet-panel="referrals" aria-labelledby="referrals-title">
+        <div class="sh-panel-head">
+          <div>
+            <p>Рефералы</p>
+            <h2 id="referrals-title">Приглашения и бонусы</h2>
+          </div>
+          <button class="sh-mini-button" type="button" data-copy-referral>Копировать ссылку</button>
+        </div>
+
+        <div class="sh-access-preview">
+          <span>Твоя ссылка</span>
+          <code data-referral-link data-copy-text="{{ public_base_url }}/ref/{{ user["username"] }}">{{ public_base_url }}/ref/{{ user["username"] }}</code>
+        </div>
+
+        <div class="sh-ref-table">
+          <table>
+            <thead>
               <tr>
-                <td colspan="3">Пока нет приглашенных клиентов.</td>
+                <th>Клиент</th>
+                <th>Статус</th>
+                <th>Бонус</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {% for referral in referrals %}
+                <tr>
+                  <td data-label="Друг">{{ referral["username"] }}</td>
+                  <td data-label="Статус">
+                    <span class="sh-ref-status {% if 'оплат' in referral['status']|lower %}is-paid{% elif 'зарегистр' in referral['status']|lower %}is-registered{% endif %}">
+                      {{ referral["status"] }}
+                    </span>
+                  </td>
+                  <td data-label="Бонус">{{ referral["bonus_days"] }} дн.</td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td class="sh-ref-table__empty" colspan="3">Пока нет приглашенных клиентов.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const cabinetRoot = document.querySelector("[data-cabinet-tabs]");
+
+  if (cabinetRoot) {
+    const tabs = Array.from(cabinetRoot.querySelectorAll("[data-cabinet-tab]"));
+    const panels = Array.from(cabinetRoot.querySelectorAll("[data-cabinet-panel]"));
+    const title = cabinetRoot.querySelector("[data-cabinet-title]");
+    const menuToggle = cabinetRoot.querySelector("[data-cabinet-menu-toggle]");
+    const menu = cabinetRoot.querySelector("[data-cabinet-nav]");
+    const menuBackdrop = cabinetRoot.querySelector("[data-cabinet-menu-backdrop]");
+    const installRoot = cabinetRoot.querySelector("[data-install-root]");
+    const autopayCard = cabinetRoot.querySelector("[data-autopay-card]");
+    const names = {
+      overview: "Обзор",
+      subscription: "Подписка",
+      setup: "Установка",
+      bonuses: "Бонусы",
+      referrals: "Рефералы"
+    };
+
+    function setCabinetMenu(open) {
+      if (!menuToggle || !menu) return;
+      cabinetRoot.classList.toggle("is-menu-open", open);
+      menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function activateCabinetSection(section) {
+      if (section === "telegram") {
+        section = "bonuses";
+      }
+      const nextSection = panels.some((panel) => panel.dataset.cabinetPanel === section) ? section : "overview";
+
+      tabs.forEach((tab) => {
+        tab.classList.toggle("is-active", tab.dataset.cabinetTab === nextSection);
+      });
+
+      panels.forEach((panel) => {
+        const isActive = panel.dataset.cabinetPanel === nextSection;
+        panel.classList.toggle("is-active", isActive);
+        panel.setAttribute("aria-hidden", isActive ? "false" : "true");
+      });
+
+      if (title) {
+        title.textContent = names[nextSection] || names.overview;
+      }
+
+      setCabinetMenu(false);
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        activateCabinetSection(tab.dataset.cabinetTab);
+      });
+    });
+
+    if (menuToggle) {
+      menuToggle.addEventListener("click", () => {
+        setCabinetMenu(!cabinetRoot.classList.contains("is-menu-open"));
+      });
+    }
+
+    if (menuBackdrop) {
+      menuBackdrop.addEventListener("click", () => {
+        setCabinetMenu(false);
+      });
+    }
+
+    if (installRoot) {
+      const platformTabs = Array.from(installRoot.querySelectorAll("[data-platform-tab]"));
+      const platformPanels = Array.from(installRoot.querySelectorAll("[data-platform-panel]"));
+
+      function selectPlatform(platform) {
+        const hasPlatform = platformPanels.some((panel) => panel.dataset.platformPanel === platform);
+        const nextPlatform = hasPlatform ? platform : "android";
+
+        platformTabs.forEach((tab) => {
+          tab.classList.toggle("is-active", tab.dataset.platformTab === nextPlatform);
+        });
+        platformPanels.forEach((panel) => {
+          panel.classList.toggle("is-active", panel.dataset.platformPanel === nextPlatform);
+        });
+      }
+
+      function platformFromUserAgent() {
+        const ua = navigator.userAgent || "";
+        const platform = navigator.platform || "";
+        const touchMac = platform === "MacIntel" && navigator.maxTouchPoints > 1;
+        if (/Android/i.test(ua)) return "android";
+        if (/iPhone|iPad|iPod/i.test(ua) || touchMac) return "ios";
+        if (/Win/i.test(platform) || /Windows/i.test(ua)) return "windows";
+        if (/Mac/i.test(platform) || /Macintosh/i.test(ua)) return "macos";
+        return "android";
+      }
+
+      platformTabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          selectPlatform(tab.dataset.platformTab);
+        });
+      });
+
+      selectPlatform(platformFromUserAgent());
+    }
+
+    async function copyText(value) {
+      if (!value) return false;
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      const copied = document.execCommand("copy");
+      area.remove();
+      return copied;
+    }
+
+    function showCopied(button, success = true) {
+      if (!button) return;
+      const originalText = button.dataset.copyOriginalText || button.textContent;
+      button.dataset.copyOriginalText = originalText;
+      button.classList.remove("is-copied", "is-copy-error");
+      void button.offsetWidth;
+      button.classList.add(success ? "is-copied" : "is-copy-error");
+      button.textContent = success ? "Скопировано" : "Не скопировано";
+
+      window.clearTimeout(button.copyResetTimer);
+      button.copyResetTimer = window.setTimeout(() => {
+        button.classList.remove("is-copied", "is-copy-error");
+        button.textContent = originalText;
+      }, 1400);
+    }
+
+    async function copyFromCode(code, trigger) {
+      const value = code?.dataset.copyText !== undefined ? code.dataset.copyText : code?.textContent.trim();
+      const success = await copyText(value);
+      showCopied(trigger, success);
+    }
+
+    cabinetRoot.querySelectorAll("[data-copy-nearest]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const code = button.closest(".sh-manual-key")?.querySelector("[data-copy-text]");
+        await copyFromCode(code, button);
+      });
+    });
+
+    cabinetRoot.querySelectorAll("code[data-copy-text]").forEach((code) => {
+      code.addEventListener("click", async () => {
+        await copyFromCode(code, code);
+      });
+    });
+
+    const activeKeyButton = cabinetRoot.querySelector("[data-copy-active-key]");
+    if (activeKeyButton) {
+      activeKeyButton.addEventListener("click", async () => {
+        const activePanel = cabinetRoot.querySelector(".sh-install-panel.is-active");
+        const code = activePanel?.querySelector("[data-copy-text]");
+        await copyFromCode(code, activeKeyButton);
+      });
+    }
+
+    const referralButton = cabinetRoot.querySelector("[data-copy-referral]");
+    if (referralButton) {
+      referralButton.addEventListener("click", async () => {
+        await copyFromCode(cabinetRoot.querySelector("[data-referral-link]"), referralButton);
+      });
+    }
+
+    if (autopayCard) {
+      const openAutopayConfirm = autopayCard.querySelector("[data-autopay-open]");
+      const closeAutopayConfirm = autopayCard.querySelector("[data-autopay-close]");
+
+      openAutopayConfirm?.addEventListener("click", () => {
+        autopayCard.classList.add("is-confirming");
+      });
+
+      closeAutopayConfirm?.addEventListener("click", () => {
+        autopayCard.classList.remove("is-confirming");
+      });
+    }
+
+    window.addEventListener("hashchange", () => {
+      activateCabinetSection(window.location.hash.replace("#", ""));
+    });
+
+    activateCabinetSection(window.location.hash.replace("#", "") || "overview");
+  }
+</script>
 {% endblock %}

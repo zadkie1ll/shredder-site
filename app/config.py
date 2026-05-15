@@ -46,6 +46,7 @@ class Settings:
     telegram_bot_token: str | None
     telegram_link_bonus_days: int
     telegram_login_max_age_seconds: int
+    one_click_redirect_url: str | None
 
     @property
     def remnawave_enabled(self) -> bool:
@@ -67,6 +68,9 @@ def load_settings() -> Settings:
     rwms_port = int(rwms_port_raw) if rwms_port_raw else None
     squads_value = os.getenv("SHREDDER_SITE_INTERNAL_SQUADS_UUIDS") or os.getenv(
         "MI_VPN_BOT_INTERNAL_SQUADS_UUIDS", ""
+    )
+    one_click_redirect_url = os.getenv("SHREDDER_SITE_ONE_CLICK_REDIRECT_URL") or os.getenv(
+        "MI_VPN_BOT_REDIRECT_URL"
     )
 
     database_url = _postgres_url_from_env()
@@ -105,6 +109,7 @@ def load_settings() -> Settings:
             "SHREDDER_SITE_TELEGRAM_LOGIN_MAX_AGE_SECONDS",
             86400,
         ),
+        one_click_redirect_url=one_click_redirect_url,
     )
 
 

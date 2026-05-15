@@ -38,6 +38,7 @@ docker compose up --build
 - `SHREDDER_SITE_RECEIPT_EMAIL` — email для receipt в YooKassa, по умолчанию как в боте `receipts@orpheous.ru`;
 - `SHREDDER_SITE_TELEGRAM_BOT_USERNAME` / `SHREDDER_SITE_TELEGRAM_BOT_TOKEN` — бот для Telegram Login Widget и проверки подписи привязки;
 - `SHREDDER_SITE_TELEGRAM_LINK_BONUS_DAYS` — бонус за привязку Telegram, по умолчанию 7 дней;
+- `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` или `MI_VPN_BOT_REDIRECT_URL` — redirect-префикс для one-click установки, как в VPN-боте;
 - `SHREDDER_SITE_DATABASE_URL` или `MI_VPN_BOT_POSTGRES_*` — доступ к общей Postgres-базе;
 - `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` или `MI_VPN_BOT_RWMS_*` — gRPC endpoint RWMS/Remnawave.
 - `SHREDDER_SITE_INTERNAL_SQUADS_UUIDS` — список squad UUID через запятую, если RWMS должен сразу привязать пользователя к squad.

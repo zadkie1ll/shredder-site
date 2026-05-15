@@ -1,5 +1,6 @@
 import hmac
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
@@ -8,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.one_click import build_one_click_links
 from app.payments import create_payment_url
 from app.remnawave import (
     create_remnawave_user,
@@ -16,8 +18,10 @@ from app.remnawave import (
 )
 from app.repository import (
     authenticate_site_user,
+    cancel_autopay,
     create_user,
     generate_site_username,
+    get_autopay_info,
     get_referrals,
     get_user_by_id,
     get_user_by_username,
@@ -40,6 +44,13 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
+
+
+def static_version() -> int:
+    return int(Path("app/static/styles.css").stat().st_mtime)
+
+
+templates.env.globals["static_version"] = static_version
 
 
 @app.on_event("startup")
@@ -199,6 +210,22 @@ async def create_payment(request: Request, tariff_id: str = Form(...)):
     return RedirectResponse(payment_url, status_code=303)
 
 
+@app.post("/cabinet/autopay/cancel")
+def cancel_autopay_action(request: Request, confirm: str = Form("")):
+    user = require_user(request)
+    if isinstance(user, RedirectResponse):
+        return user
+
+    if confirm != "yes":
+        request.session["autopay_status"] = "cancel_not_confirmed"
+        return RedirectResponse("/cabinet#subscription", status_code=303)
+
+    request.session["autopay_status"] = (
+        "canceled" if cancel_autopay(user) else "not_found"
+    )
+    return RedirectResponse("/cabinet#subscription", status_code=303)
+
+
 @app.get("/cabinet/link/telegram/callback")
 async def telegram_link_callback(request: Request):
     user = require_user(request)
@@ -207,7 +234,7 @@ async def telegram_link_callback(request: Request):
 
     if not settings.telegram_bot_token:
         request.session["telegram_link_status"] = "telegram_not_configured"
-        return RedirectResponse("/cabinet#telegram", status_code=303)
+        return RedirectResponse("/cabinet#bonuses", status_code=303)
 
     payload = {key: value for key, value in request.query_params.items()}
     if not verify_telegram_login(
@@ -216,14 +243,14 @@ async def telegram_link_callback(request: Request):
         settings.telegram_login_max_age_seconds,
     ):
         request.session["telegram_link_status"] = "telegram_invalid"
-        return RedirectResponse("/cabinet#telegram", status_code=303)
+        return RedirectResponse("/cabinet#bonuses", status_code=303)
 
     try:
         telegram_id = int(payload["id"])
         result = link_telegram_account(user.id, telegram_id)
     except Exception:
         request.session["telegram_link_status"] = "telegram_failed"
-        return RedirectResponse("/cabinet#telegram", status_code=303)
+        return RedirectResponse("/cabinet#bonuses", status_code=303)
 
     await update_remnawave_user_after_telegram_link(
         result.user.username,
@@ -238,7 +265,7 @@ async def telegram_link_callback(request: Request):
         request.session["telegram_link_status"] = f"telegram_linked_bonus:{result.bonus_days_added}"
     else:
         request.session["telegram_link_status"] = "telegram_linked"
-    return RedirectResponse("/cabinet#telegram", status_code=303)
+    return RedirectResponse("/cabinet#bonuses", status_code=303)
 
 
 async def render_cabinet(request: Request):
@@ -257,6 +284,9 @@ async def render_cabinet(request: Request):
 
     bonus_days = sum(referral.bonus_days for referral in referrals)
     telegram_link_status = request.session.pop("telegram_link_status", None)
+    autopay_status = request.session.pop("autopay_status", None)
+    subscription_url = remnawave_user.subscription_url if remnawave_user else None
+    autopay_info = get_autopay_info(user)
 
     return templates.TemplateResponse(
         "cabinet.html",
@@ -269,11 +299,14 @@ async def render_cabinet(request: Request):
             "invited_count": len(referrals),
             "bonus_days": bonus_days,
             "tariffs": get_tariffs(),
-            "subscription_url": remnawave_user.subscription_url if remnawave_user else None,
+            "subscription_url": subscription_url,
+            "one_click_links": build_one_click_links(subscription_url),
             "public_base_url": settings.public_base_url,
             "telegram_bot_username": settings.telegram_bot_username,
             "telegram_link_bonus_days": settings.telegram_link_bonus_days,
             "telegram_link_status": telegram_link_status,
+            "autopay_info": autopay_info,
+            "autopay_status": autopay_status,
         },
     )
 
