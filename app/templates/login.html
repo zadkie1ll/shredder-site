@@ -18,10 +18,22 @@
       <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
 
+    <label class="sh-login-field">
+      <span>Почта</span>
+      <input type="email" name="username" autocomplete="email" placeholder="mail@example.com" required>
+    </label>
+
+    <label class="sh-login-field">
+      <span>Пароль</span>
+      <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+    </label>
+
+    <div class="sh-login-divider"><span>или</span></div>
+
     <div class="sh-social-login" aria-label="Вход через внешние сервисы">
       {% if telegram_bot_username %}
         <div class="sh-social-button sh-social-button--telegram" title="Войти через Telegram">
-          <span aria-hidden="true">T</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-telegram.svg') }}" alt="">
           <script
             async
             src="https://telegram.org/js/telegram-widget.js?22"
@@ -33,43 +45,31 @@
         </div>
       {% else %}
         <button class="sh-social-button sh-social-button--telegram" type="button" disabled title="Telegram не настроен">
-          <span aria-hidden="true">T</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-telegram.svg') }}" alt="">
         </button>
       {% endif %}
 
       {% if google_oauth_enabled %}
         <a class="sh-social-button sh-social-button--google" href="/auth/google/start" aria-label="Войти через Google" title="Войти через Google">
-          <span aria-hidden="true">G</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
         </a>
       {% else %}
         <button class="sh-social-button sh-social-button--google" type="button" disabled title="Google не настроен">
-          <span aria-hidden="true">G</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
         </button>
       {% endif %}
 
       {% if yandex_oauth_enabled %}
         <div class="sh-social-button sh-social-button--yandex" title="Войти через Яндекс">
-          <span aria-hidden="true">Я</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">
           <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
         </div>
       {% else %}
         <button class="sh-social-button sh-social-button--yandex" type="button" disabled title="Яндекс не настроен">
-          <span aria-hidden="true">Я</span>
+          <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">
         </button>
       {% endif %}
     </div>
-
-    <div class="sh-login-divider"><span>или</span></div>
-
-    <label class="sh-login-field">
-      <span>Почта</span>
-      <input type="email" name="username" autocomplete="email" placeholder="mail@example.com" required>
-    </label>
-
-    <label class="sh-login-field">
-      <span>Пароль</span>
-      <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
-    </label>
 
     <button class="sh-button sh-button--green sh-login-submit" type="submit">ВОЙТИ</button>
 
