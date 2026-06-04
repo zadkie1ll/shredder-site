@@ -51,6 +51,7 @@ from app.yandex_oauth import (
     build_yandex_authorize_url,
     exchange_yandex_code,
     fetch_yandex_user,
+    yandex_code_flow_enabled,
     yandex_oauth_enabled,
     yandex_origin,
     yandex_suggest_token_uri,
@@ -391,7 +392,7 @@ async def _login_yandex_user(request: Request, yandex_user):
 
 @app.get("/auth/yandex/start")
 def yandex_login_start(request: Request):
-    if not yandex_oauth_enabled():
+    if not yandex_code_flow_enabled():
         request.session["login_error"] = "Вход через Яндекс пока не настроен."
         return RedirectResponse("/login", status_code=303)
 

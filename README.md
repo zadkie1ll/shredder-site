@@ -40,7 +40,8 @@ docker compose up --build
 - `SHREDDER_SITE_SMTP_HOST`, `SHREDDER_SITE_SMTP_PORT`, `SHREDDER_SITE_SMTP_USERNAME`, `SHREDDER_SITE_SMTP_PASSWORD`, `SHREDDER_SITE_SMTP_FROM_EMAIL`, `SHREDDER_SITE_SMTP_USE_TLS` — SMTP для отправки кодов регистрации;
 - `SHREDDER_SITE_TELEGRAM_BOT_USERNAME` / `SHREDDER_SITE_TELEGRAM_BOT_TOKEN` — бот для Telegram Login Widget, входа через Telegram и проверки подписи привязки;
 - `SHREDDER_SITE_TELEGRAM_LINK_BONUS_DAYS` — бонус за привязку Telegram, по умолчанию 7 дней;
-- `SHREDDER_SITE_YANDEX_CLIENT_ID` / `SHREDDER_SITE_YANDEX_CLIENT_SECRET` — приложение Яндекс OAuth для входа через Яндекс; Redirect URI для виджета: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/token`, fallback Redirect URI: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/callback`;
+- `SHREDDER_SITE_YANDEX_CLIENT_ID` — приложение Яндекс OAuth для входа через виджет; Redirect URI для виджета: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/token`;
+- `SHREDDER_SITE_YANDEX_CLIENT_SECRET` — опционально, нужен только для fallback Redirect URI `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/callback`;
 - `SHREDDER_SITE_YANDEX_SCOPES` — права Яндекс OAuth, по умолчанию `login:info,login:email`;
 - `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` или `MI_VPN_BOT_REDIRECT_URL` — redirect-префикс для one-click установки, как в VPN-боте;
 - `SHREDDER_SITE_DATABASE_URL` или `MI_VPN_BOT_POSTGRES_*` — доступ к общей Postgres-базе;

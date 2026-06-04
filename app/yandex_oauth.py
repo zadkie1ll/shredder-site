@@ -25,6 +25,10 @@ class YandexUserInfo:
 
 
 def yandex_oauth_enabled() -> bool:
+    return bool(settings.yandex_oauth_client_id)
+
+
+def yandex_code_flow_enabled() -> bool:
     return bool(settings.yandex_oauth_client_id and settings.yandex_oauth_client_secret)
 
 
@@ -42,7 +46,7 @@ def yandex_suggest_token_uri() -> str:
 
 
 def build_yandex_authorize_url(state: str) -> str:
-    if not settings.yandex_oauth_client_id:
+    if not yandex_code_flow_enabled():
         raise YandexOAuthError("Yandex OAuth is not configured.")
 
     params = {

@@ -117,12 +117,6 @@ def load_settings() -> Settings:
             raise ValueError("YooKassa envs must be set in production.")
         if not telegram_bot_username or not telegram_bot_token:
             raise ValueError("Telegram bot username and token must be set in production.")
-        if bool(yandex_oauth_client_id) != bool(yandex_oauth_client_secret):
-            raise ValueError(
-                "Both SHREDDER_SITE_YANDEX_CLIENT_ID and "
-                "SHREDDER_SITE_YANDEX_CLIENT_SECRET must be set."
-            )
-
     return Settings(
         environment=environment,
         session_secret=session_secret,
