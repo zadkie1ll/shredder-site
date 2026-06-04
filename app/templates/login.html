@@ -18,42 +18,43 @@
       <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
 
-    <div class="sh-telegram-login">
+    <div class="sh-social-login" aria-label="Вход через внешние сервисы">
       {% if telegram_bot_username %}
-        <script
-          async
-          src="https://telegram.org/js/telegram-widget.js?22"
-          data-telegram-login="{{ telegram_bot_username }}"
-          data-size="large"
-          data-auth-url="{{ telegram_auth_url }}"
-          data-request-access="write">
-        </script>
+        <div class="sh-social-button sh-social-button--telegram" title="Войти через Telegram">
+          <span aria-hidden="true">T</span>
+          <script
+            async
+            src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="{{ telegram_bot_username }}"
+            data-size="large"
+            data-auth-url="{{ telegram_auth_url }}"
+            data-request-access="write">
+          </script>
+        </div>
       {% else %}
-        <button class="sh-button sh-button--green sh-login-submit" type="button" disabled>TELEGRAM НЕ НАСТРОЕН</button>
-      {% endif %}
-    </div>
-
-    <div class="sh-oauth-login">
-      {% if yandex_oauth_enabled %}
-        <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
-      {% else %}
-        <button class="sh-oauth-button sh-oauth-button--yandex" type="button" disabled>
-          <span class="sh-oauth-button__mark">Я</span>
-          <span>Яндекс не настроен</span>
+        <button class="sh-social-button sh-social-button--telegram" type="button" disabled title="Telegram не настроен">
+          <span aria-hidden="true">T</span>
         </button>
       {% endif %}
-    </div>
 
-    <div class="sh-oauth-login">
       {% if google_oauth_enabled %}
-        <a class="sh-oauth-button sh-oauth-button--google" href="/auth/google/start">
-          <span class="sh-oauth-button__mark">G</span>
-          <span>Войти через Google</span>
+        <a class="sh-social-button sh-social-button--google" href="/auth/google/start" aria-label="Войти через Google" title="Войти через Google">
+          <span aria-hidden="true">G</span>
         </a>
       {% else %}
-        <button class="sh-oauth-button sh-oauth-button--google" type="button" disabled>
-          <span class="sh-oauth-button__mark">G</span>
-          <span>Google не настроен</span>
+        <button class="sh-social-button sh-social-button--google" type="button" disabled title="Google не настроен">
+          <span aria-hidden="true">G</span>
+        </button>
+      {% endif %}
+
+      {% if yandex_oauth_enabled %}
+        <div class="sh-social-button sh-social-button--yandex" title="Войти через Яндекс">
+          <span aria-hidden="true">Я</span>
+          <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
+        </div>
+      {% else %}
+        <button class="sh-social-button sh-social-button--yandex" type="button" disabled title="Яндекс не настроен">
+          <span aria-hidden="true">Я</span>
         </button>
       {% endif %}
     </div>
@@ -90,6 +91,26 @@
       return;
     }
 
+    function finishYandexLogin(data) {
+      if (!data || !data.access_token) {
+        throw new Error("missing_yandex_token");
+      }
+
+      var body = new URLSearchParams();
+      body.set("access_token", data.access_token);
+      return fetch("/auth/yandex/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString()
+      })
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (result) {
+          window.location.href = result.redirect || "/cabinet";
+        });
+    }
+
     window.YaAuthSuggest.init(
       {
         client_id: container.dataset.clientId,
@@ -107,26 +128,17 @@
       }
     )
       .then(function (result) {
-        return result.handler();
-      })
-      .then(function (data) {
-        if (!data || !data.access_token) {
-          throw new Error("missing_yandex_token");
+        var yandexButton = container.closest(".sh-social-button--yandex");
+        if (!yandexButton) {
+          return;
         }
-
-        var body = new URLSearchParams();
-        body.set("access_token", data.access_token);
-        return fetch("/auth/yandex/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: body.toString()
+        yandexButton.addEventListener("click", function () {
+          result.handler()
+            .then(finishYandexLogin)
+            .catch(function () {
+              window.location.href = "/auth/yandex/start";
+            });
         });
-      })
-      .then(function (response) {
-        return response.json();
-      })
-      .then(function (result) {
-        window.location.href = result.redirect || "/cabinet";
       })
       .catch(function () {
         window.location.href = "/auth/yandex/start";
