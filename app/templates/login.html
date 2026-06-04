@@ -44,6 +44,20 @@
       {% endif %}
     </div>
 
+    <div class="sh-oauth-login">
+      {% if google_oauth_enabled %}
+        <a class="sh-oauth-button sh-oauth-button--google" href="/auth/google/start">
+          <span class="sh-oauth-button__mark">G</span>
+          <span>Войти через Google</span>
+        </a>
+      {% else %}
+        <button class="sh-oauth-button sh-oauth-button--google" type="button" disabled>
+          <span class="sh-oauth-button__mark">G</span>
+          <span>Google не настроен</span>
+        </button>
+      {% endif %}
+    </div>
+
     <div class="sh-login-divider"><span>или</span></div>
 
     <label class="sh-login-field">

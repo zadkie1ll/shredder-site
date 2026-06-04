@@ -57,6 +57,9 @@ class Settings:
     yandex_oauth_client_id: str | None
     yandex_oauth_client_secret: str | None
     yandex_oauth_scopes: str
+    google_oauth_client_id: str | None
+    google_oauth_client_secret: str | None
+    google_oauth_scopes: str
     one_click_redirect_url: str | None
     registration_code_ttl_seconds: int
     smtp_host: str | None
@@ -97,6 +100,8 @@ def load_settings() -> Settings:
     )
     yandex_oauth_client_id = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_ID")
     yandex_oauth_client_secret = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_SECRET")
+    google_oauth_client_id = os.getenv("SHREDDER_SITE_GOOGLE_CLIENT_ID")
+    google_oauth_client_secret = os.getenv("SHREDDER_SITE_GOOGLE_CLIENT_SECRET")
     smtp_host = os.getenv("SHREDDER_SITE_SMTP_HOST")
     smtp_from_email = os.getenv(
         "SHREDDER_SITE_SMTP_FROM_EMAIL",
@@ -150,6 +155,12 @@ def load_settings() -> Settings:
         yandex_oauth_scopes=os.getenv(
             "SHREDDER_SITE_YANDEX_SCOPES",
             "login:info,login:email",
+        ),
+        google_oauth_client_id=google_oauth_client_id,
+        google_oauth_client_secret=google_oauth_client_secret,
+        google_oauth_scopes=os.getenv(
+            "SHREDDER_SITE_GOOGLE_SCOPES",
+            "openid email profile",
         ),
         one_click_redirect_url=one_click_redirect_url,
         registration_code_ttl_seconds=_read_int(

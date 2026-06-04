@@ -1638,6 +1638,20 @@ th {
   width: 24px;
 }
 
+.sh-oauth-button--google {
+  background: white;
+  color: #202124;
+}
+
+.sh-oauth-button--google:hover {
+  box-shadow: 0 12px 26px rgba(255, 255, 255, 0.18);
+}
+
+.sh-oauth-button--google .sh-oauth-button__mark {
+  background: #4285f4;
+  color: white;
+}
+
 .sh-login-divider {
   align-items: center;
   color: rgba(255, 255, 255, 0.5);

@@ -393,6 +393,35 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
 
         self.assertEqual(oauth_identity.email, "user@example.com")
 
+    def test_google_oauth_links_existing_email_user(self):
+        now = utcnow_naive().replace(microsecond=0)
+        registration = create_pending_registration(
+            None,
+            "user@example.com",
+            "secret123",
+        )
+        pending = verify_pending_registration_code(
+            registration.token,
+            registration.code,
+        )
+        user = consume_pending_registration(pending, now + timedelta(days=7))
+
+        linked_user = link_oauth_identity(
+            user.id,
+            "google",
+            "google-123",
+            "USER@EXAMPLE.COM",
+        )
+        found = get_user_by_oauth_identity("google", "google-123")
+
+        self.assertEqual(linked_user.id, user.id)
+        self.assertEqual(found.id, user.id)
+        with self.sessionmaker() as session:
+            oauth_identity = session.get(SiteOAuthIdentity, "google:google-123")
+
+        self.assertEqual(oauth_identity.provider, "google")
+        self.assertEqual(oauth_identity.email, "user@example.com")
+
     def test_merged_account_can_login_by_telegram_id(self):
         now = utcnow_naive().replace(microsecond=0)
         self.add_user(1, "site", -101, now + timedelta(days=40))

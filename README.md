@@ -43,6 +43,8 @@ docker compose up --build
 - `SHREDDER_SITE_YANDEX_CLIENT_ID` — приложение Яндекс OAuth для входа через виджет; Redirect URI для виджета: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/token`;
 - `SHREDDER_SITE_YANDEX_CLIENT_SECRET` — опционально, нужен только для fallback Redirect URI `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/yandex/callback`;
 - `SHREDDER_SITE_YANDEX_SCOPES` — права Яндекс OAuth, по умолчанию `login:info,login:email`;
+- `SHREDDER_SITE_GOOGLE_CLIENT_ID` / `SHREDDER_SITE_GOOGLE_CLIENT_SECRET` — приложение Google OAuth; Authorized redirect URI: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/google/callback`;
+- `SHREDDER_SITE_GOOGLE_SCOPES` — права Google OAuth, по умолчанию `openid email profile`;
 - `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` или `MI_VPN_BOT_REDIRECT_URL` — redirect-префикс для one-click установки, как в VPN-боте;
 - `SHREDDER_SITE_DATABASE_URL` или `MI_VPN_BOT_POSTGRES_*` — доступ к общей Postgres-базе;
 - `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` или `MI_VPN_BOT_RWMS_*` — gRPC endpoint RWMS/Remnawave.

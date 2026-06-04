@@ -12,6 +12,13 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.email_delivery import send_registration_code
+from app.google_oauth import (
+    GoogleOAuthError,
+    build_google_authorize_url,
+    exchange_google_code,
+    fetch_google_user,
+    google_oauth_enabled,
+)
 from app.one_click import build_one_click_links
 from app.payments import create_payment_url
 from app.remnawave import (
@@ -115,6 +122,7 @@ def login_context(request: Request, error: str | None = None) -> dict:
         "yandex_client_id": settings.yandex_oauth_client_id,
         "yandex_origin": yandex_origin(),
         "yandex_token_uri": yandex_suggest_token_uri(),
+        "google_oauth_enabled": google_oauth_enabled(),
     }
 
 
@@ -361,16 +369,21 @@ async def telegram_login_callback(request: Request):
     return RedirectResponse("/cabinet", status_code=303)
 
 
-async def _login_yandex_user(request: Request, yandex_user):
-    user = get_user_by_oauth_identity("yandex", yandex_user.provider_user_id)
+async def _login_oauth_user(
+    request: Request,
+    provider: str,
+    provider_user_id: str,
+    email: str,
+):
+    user = get_user_by_oauth_identity(provider, provider_user_id)
     if user is None:
-        existing_user = get_user_by_username(yandex_user.email)
+        existing_user = get_user_by_username(email)
         if existing_user is not None:
             user = link_oauth_identity(
                 existing_user.id,
-                "yandex",
-                yandex_user.provider_user_id,
-                yandex_user.email,
+                provider,
+                provider_user_id,
+                email,
             )
         else:
             username = generate_site_username()
@@ -378,9 +391,9 @@ async def _login_yandex_user(request: Request, yandex_user):
             if remnawave_user is None:
                 raise RuntimeError("remnawave user was not created")
             user = create_oauth_user(
-                "yandex",
-                yandex_user.provider_user_id,
-                yandex_user.email,
+                provider,
+                provider_user_id,
+                email,
                 username,
                 remnawave_user.expire_at,
             )
@@ -388,6 +401,15 @@ async def _login_yandex_user(request: Request, yandex_user):
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return user
+
+
+async def _login_yandex_user(request: Request, yandex_user):
+    return await _login_oauth_user(
+        request,
+        "yandex",
+        yandex_user.provider_user_id,
+        yandex_user.email,
+    )
 
 
 @app.get("/auth/yandex/start")
@@ -477,6 +499,56 @@ async def yandex_widget_login(request: Request, access_token: str = Form("")):
             status_code=400,
         )
     return JSONResponse({"ok": True, "redirect": "/cabinet"})
+
+
+@app.get("/auth/google/start")
+def google_login_start(request: Request):
+    if not google_oauth_enabled():
+        request.session["login_error"] = "Вход через Google пока не настроен."
+        return RedirectResponse("/login", status_code=303)
+
+    state = secrets.token_urlsafe(32)
+    request.session["google_oauth_state"] = state
+    try:
+        authorize_url = build_google_authorize_url(state)
+    except GoogleOAuthError:
+        request.session["login_error"] = "Вход через Google пока не настроен."
+        return RedirectResponse("/login", status_code=303)
+    return RedirectResponse(authorize_url, status_code=303)
+
+
+@app.get("/auth/google/callback")
+async def google_login_callback(request: Request):
+    expected_state = request.session.pop("google_oauth_state", None)
+    returned_state = request.query_params.get("state")
+    if not expected_state or returned_state != expected_state:
+        request.session["login_error"] = "Не удалось проверить вход через Google."
+        return RedirectResponse("/login", status_code=303)
+
+    if request.query_params.get("error"):
+        request.session["login_error"] = "Google не подтвердил вход."
+        return RedirectResponse("/login", status_code=303)
+
+    code = request.query_params.get("code", "").strip()
+    if not code:
+        request.session["login_error"] = "Google не передал код входа."
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        access_token = await run_in_threadpool(exchange_google_code, code)
+        google_user = await run_in_threadpool(fetch_google_user, access_token)
+        await _login_oauth_user(
+            request,
+            "google",
+            google_user.provider_user_id,
+            google_user.email,
+        )
+    except (GoogleOAuthError, RuntimeError, ValueError):
+        request.session["login_error"] = (
+            "Не удалось создать вход через Google. Попробуй позже."
+        )
+        return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/cabinet", status_code=303)
 
 
 @app.get("/logout")
