@@ -12,6 +12,13 @@ def _read_int(name: str, default: int) -> int:
         raise ValueError(f"{name} must be an integer, got {value!r}") from exc
 
 
+def _read_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    return value.lower() not in {"0", "false", "no", "off"}
+
+
 def _postgres_url_from_env() -> str | None:
     explicit_url = os.getenv("SHREDDER_SITE_DATABASE_URL")
     if explicit_url:
@@ -39,6 +46,7 @@ class Settings:
     public_base_url: str
     trial_period_days: int
     internal_squads_uuids: list[str]
+    legacy_limited_subscription_enabled: bool
     yookassa_shop_id: str | None
     yookassa_secret: str | None
     receipt_email: str
@@ -47,6 +55,13 @@ class Settings:
     telegram_link_bonus_days: int
     telegram_login_max_age_seconds: int
     one_click_redirect_url: str | None
+    registration_code_ttl_seconds: int
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_from_email: str
+    smtp_use_tls: bool
 
     @property
     def remnawave_enabled(self) -> bool:
@@ -72,17 +87,31 @@ def load_settings() -> Settings:
     one_click_redirect_url = os.getenv("SHREDDER_SITE_ONE_CLICK_REDIRECT_URL") or os.getenv(
         "MI_VPN_BOT_REDIRECT_URL"
     )
+    public_base_url = os.getenv("SHREDDER_SITE_PUBLIC_BASE_URL", "https://shredder.local")
+    telegram_bot_username = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_USERNAME")
+    telegram_bot_token = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN") or os.getenv(
+        "MI_VPN_BOT_TOKEN"
+    )
+    smtp_host = os.getenv("SHREDDER_SITE_SMTP_HOST")
+    smtp_from_email = os.getenv(
+        "SHREDDER_SITE_SMTP_FROM_EMAIL",
+        "no-reply@orpheous.ru",
+    )
 
     database_url = _postgres_url_from_env()
     if environment == "production":
         if session_secret == "dev-only-change-me":
             raise ValueError("SHREDDER_SITE_SESSION_SECRET must be set in production.")
+        if public_base_url == "https://shredder.local":
+            raise ValueError("SHREDDER_SITE_PUBLIC_BASE_URL must be set in production.")
         if not database_url:
             raise ValueError("Postgres connection envs must be set in production.")
         if not rwms_addr or not rwms_port:
             raise ValueError("RWMS/Remnawave envs must be set in production.")
         if not yookassa_shop_id or not yookassa_secret:
             raise ValueError("YooKassa envs must be set in production.")
+        if not telegram_bot_username or not telegram_bot_token:
+            raise ValueError("Telegram bot username and token must be set in production.")
 
     return Settings(
         environment=environment,
@@ -91,25 +120,38 @@ def load_settings() -> Settings:
         database_url=database_url,
         rwms_addr=rwms_addr,
         rwms_port=rwms_port,
-        public_base_url=os.getenv("SHREDDER_SITE_PUBLIC_BASE_URL", "https://shredder.local"),
+        public_base_url=public_base_url,
         trial_period_days=_read_int("SHREDDER_SITE_TRIAL_PERIOD_DAYS", 7),
         internal_squads_uuids=[
             squad_uuid.strip()
             for squad_uuid in squads_value.split(",")
             if squad_uuid.strip()
         ],
+        legacy_limited_subscription_enabled=_read_bool(
+            "SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED",
+            False,
+        ),
         yookassa_shop_id=yookassa_shop_id,
         yookassa_secret=yookassa_secret,
         receipt_email=os.getenv("SHREDDER_SITE_RECEIPT_EMAIL", "receipts@orpheous.ru"),
-        telegram_bot_username=os.getenv("SHREDDER_SITE_TELEGRAM_BOT_USERNAME"),
-        telegram_bot_token=os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN")
-        or os.getenv("MI_VPN_BOT_TOKEN"),
+        telegram_bot_username=telegram_bot_username,
+        telegram_bot_token=telegram_bot_token,
         telegram_link_bonus_days=_read_int("SHREDDER_SITE_TELEGRAM_LINK_BONUS_DAYS", 7),
         telegram_login_max_age_seconds=_read_int(
             "SHREDDER_SITE_TELEGRAM_LOGIN_MAX_AGE_SECONDS",
             86400,
         ),
         one_click_redirect_url=one_click_redirect_url,
+        registration_code_ttl_seconds=_read_int(
+            "SHREDDER_SITE_REGISTRATION_CODE_TTL_SECONDS",
+            900,
+        ),
+        smtp_host=smtp_host,
+        smtp_port=_read_int("SHREDDER_SITE_SMTP_PORT", 587),
+        smtp_username=os.getenv("SHREDDER_SITE_SMTP_USERNAME"),
+        smtp_password=os.getenv("SHREDDER_SITE_SMTP_PASSWORD"),
+        smtp_from_email=smtp_from_email,
+        smtp_use_tls=_read_bool("SHREDDER_SITE_SMTP_USE_TLS", True),
     )
 
 

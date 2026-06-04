@@ -9,18 +9,41 @@
     <img class="sh-login__knight" src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
   </div>
 
-  <form class="sh-login-card" method="post" action="/register">
-    <p class="sh-login-card__eyebrow">7 дней бесплатно</p>
-    <h1 id="register-title">Регистрация</h1>
-    <p class="sh-login-card__lead">Создай доступ к Shredder VPN и сразу переходи в личный кабинет с инструкциями.</p>
+  {% if pending_registration %}
+  <form class="sh-login-card" method="post" action="/register/confirm">
+    <p class="sh-login-card__eyebrow">Подтверждение почты</p>
+    <h1 id="register-title">Код</h1>
+    <p class="sh-login-card__lead">Мы отправили код на {{ pending_registration.email }}. Введи его, чтобы создать доступ.</p>
 
     {% if error %}
       <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
 
     <label class="sh-login-field">
-      <span>Логин</span>
-      <input type="text" name="username" autocomplete="username" placeholder="Можно оставить пустым">
+      <span>Код из письма</span>
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6" required>
+    </label>
+
+    <button class="sh-button sh-button--green sh-login-submit" type="submit">ПОДТВЕРДИТЬ</button>
+
+    <div class="sh-login-card__links">
+      <span>Письмо не пришло?</span>
+      <a href="/register?reset=1">Заполнить заново</a>
+    </div>
+  </form>
+  {% else %}
+  <form class="sh-login-card" method="post" action="/register">
+    <p class="sh-login-card__eyebrow">7 дней бесплатно</p>
+    <h1 id="register-title">Регистрация</h1>
+    <p class="sh-login-card__lead">Укажи почту и пароль. Мы отправим код, а после подтверждения откроем личный кабинет.</p>
+
+    {% if error %}
+      <div class="sh-login-alert">{{ error }}</div>
+    {% endif %}
+
+    <label class="sh-login-field">
+      <span>Почта</span>
+      <input type="email" name="email" autocomplete="email" placeholder="mail@example.com" value="{{ email }}" required>
     </label>
 
     <label class="sh-login-field">
@@ -40,5 +63,6 @@
       <a href="/login">Войти</a>
     </div>
   </form>
+  {% endif %}
 </section>
 {% endblock %}

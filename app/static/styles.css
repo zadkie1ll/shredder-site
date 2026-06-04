@@ -1568,6 +1568,38 @@ th {
   padding: 13px 15px;
 }
 
+.sh-telegram-login {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+  min-height: 48px;
+}
+
+.sh-telegram-login iframe {
+  max-width: 100%;
+}
+
+.sh-login-divider {
+  align-items: center;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  font-family: Montserrat, Rubik, sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  gap: 12px;
+  letter-spacing: 0;
+  margin: 2px 0 18px;
+  text-transform: uppercase;
+}
+
+.sh-login-divider::before,
+.sh-login-divider::after {
+  background: rgba(255, 255, 255, 0.16);
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
 .sh-login-submit {
   border: 0;
   cursor: pointer;

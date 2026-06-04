@@ -16,6 +16,12 @@ class RemnawaveUser:
     active_internal_squads: tuple[str, ...]
 
 
+def legacy_limited_subscription_squads() -> list[str]:
+    if not settings.legacy_limited_subscription_enabled:
+        return []
+    return settings.internal_squads_uuids
+
+
 def _timestamp_to_datetime(value) -> datetime | None:
     if value is None:
         return None
@@ -64,7 +70,10 @@ async def get_remnawave_user(username: str) -> RemnawaveUser | None:
         await client.close()
 
 
-async def create_remnawave_user(username: str) -> RemnawaveUser | None:
+async def create_remnawave_user(
+    username: str,
+    telegram_id: int | None = None,
+) -> RemnawaveUser | None:
     if not settings.remnawave_enabled:
         return RemnawaveUser(
             username=username,
@@ -87,17 +96,19 @@ async def create_remnawave_user(username: str) -> RemnawaveUser | None:
     client = RwmsClient(settings.rwms_addr, settings.rwms_port)
     expire_at = datetime.now(timezone.utc) + timedelta(days=settings.trial_period_days)
     try:
-        response = await client.add_user(
-            proto.AddUserRequest(
-                username=username,
-                expire_at=expire_at,
-                status=proto.UserStatus.ACTIVE,
-                traffic_limit_strategy=proto.TrafficLimitStrategy.NO_RESET,
-                active_internal_squads=[*settings.internal_squads_uuids],
-                created_at=datetime.now(timezone.utc),
-                description="created from shredder-site registration",
-            )
+        request = proto.AddUserRequest(
+            username=username,
+            expire_at=expire_at,
+            status=proto.UserStatus.ACTIVE,
+            traffic_limit_strategy=proto.TrafficLimitStrategy.NO_RESET,
+            active_internal_squads=[*legacy_limited_subscription_squads()],
+            created_at=datetime.now(timezone.utc),
+            description="created from shredder-site registration",
         )
+        if telegram_id is not None:
+            request.telegram_id = telegram_id
+
+        response = await client.add_user(request)
         if response is None:
             fallback_response = await client.get_user_by_username(username)
             if fallback_response is None:
@@ -119,6 +130,7 @@ async def update_remnawave_user_after_telegram_link(
     username: str,
     expire_at: datetime | None,
     telegram_id: int,
+    username_to_disable: str | None = None,
 ) -> RemnawaveUser | None:
     if not settings.remnawave_enabled:
         return None
@@ -144,8 +156,9 @@ async def update_remnawave_user_after_telegram_link(
             status=proto.UserStatus.ACTIVE,
             traffic_limit_strategy=proto.TrafficLimitStrategy.NO_RESET,
         )
-        if settings.internal_squads_uuids:
-            request.active_internal_squads.extend(settings.internal_squads_uuids)
+        legacy_squads = legacy_limited_subscription_squads()
+        if legacy_squads:
+            request.active_internal_squads.extend(legacy_squads)
         if expire_at is not None:
             if expire_at.tzinfo is None:
                 expire_at = expire_at.replace(tzinfo=timezone.utc)
@@ -154,6 +167,19 @@ async def update_remnawave_user_after_telegram_link(
         response = await client.update_user(request)
         if response is None:
             return None
+        if username_to_disable and username_to_disable != username:
+            source_user = await client.get_user_by_username(username_to_disable)
+            if source_user is not None:
+                disable_request = proto.UpdateUserRequest(
+                    uuid=source_user.uuid,
+                    status=proto.UserStatus.DISABLED,
+                    expire_at=datetime.now(timezone.utc),
+                )
+                if await client.update_user(disable_request) is None:
+                    logging.warning(
+                        "Failed to disable merged Remnawave user %s",
+                        username_to_disable,
+                    )
         return _remnawave_user_from_response(response, expire_at)
     except Exception:
         logging.exception("Failed to update Remnawave user %s after Telegram link", username)
@@ -163,7 +189,8 @@ async def update_remnawave_user_after_telegram_link(
 
 
 async def ensure_remnawave_user_internal_squads(username: str) -> RemnawaveUser | None:
-    if not settings.remnawave_enabled or not settings.internal_squads_uuids:
+    legacy_squads = legacy_limited_subscription_squads()
+    if not settings.remnawave_enabled or not legacy_squads:
         return None
 
     try:
@@ -184,14 +211,14 @@ async def ensure_remnawave_user_internal_squads(username: str) -> RemnawaveUser 
         current_squads = {
             squad.uuid for squad in getattr(existing_user, "active_internal_squads", [])
         }
-        required_squads = set(settings.internal_squads_uuids)
+        required_squads = set(legacy_squads)
         if required_squads.issubset(current_squads):
             return _remnawave_user_from_response(existing_user)
 
         response = await client.update_user(
             proto.UpdateUserRequest(
                 uuid=existing_user.uuid,
-                active_internal_squads=[*settings.internal_squads_uuids],
+                active_internal_squads=[*legacy_squads],
             )
         )
         if response is None:

@@ -73,7 +73,7 @@
           <article class="sh-stat-card">
             <span>Пользователь</span>
             <strong class="sh-stat-card__username">{{ user["username"] }}</strong>
-            <p>Логин для входа на сайт</p>
+            <p>Идентификатор подписки</p>
           </article>
           <article class="sh-stat-card">
             <span>Бонусы</span>
@@ -84,14 +84,14 @@
 
         <div class="sh-cabinet-split">
           <article class="sh-access-preview">
-            <span>Ссылка подписки</span>
-            <code>{{ subscription_url or "Будет доступна после подключения RWMS" }}</code>
+            <span>Ключ подключения</span>
+            <code>{{ one_click_links.happ_key if one_click_links else "Будет доступен после подключения RWMS" }}</code>
           </article>
           <article class="sh-access-preview sh-access-preview--visual">
             <img src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="">
             <div>
               <strong>Быстрый старт</strong>
-              <p>Скопируй ссылку подписки и добавь ее в приложение из инструкции.</p>
+              <p>Скопируй ключ и добавь его в приложение из инструкции.</p>
             </div>
           </article>
         </div>
@@ -265,6 +265,10 @@
           <div class="sh-login-alert">
             {% if telegram_link_status.startswith("telegram_linked_bonus:") %}
               Telegram привязан. Бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен.
+            {% elif telegram_link_status.startswith("telegram_linked_bonus_sync_failed:") %}
+              Telegram привязан, бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен. Синхронизация VPN еще не завершилась, попробуй открыть кабинет чуть позже.
+            {% elif telegram_link_status == "telegram_linked_sync_failed" %}
+              Telegram привязан. Синхронизация VPN еще не завершилась, попробуй открыть кабинет чуть позже.
             {% elif telegram_link_status == "telegram_linked" %}
               Telegram привязан.
             {% elif telegram_link_status == "telegram_already_linked" %}

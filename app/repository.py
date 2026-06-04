@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
+import hmac
 import secrets
 from typing import Any
 
@@ -15,7 +16,9 @@ from sqlalchemy import (
     String,
     create_engine,
     func,
+    inspect,
     select,
+    text,
     update,
 )
 from sqlalchemy.exc import IntegrityError
@@ -54,6 +57,7 @@ class TelegramLinkResult:
     bonus_days_added: int
     merged_existing_telegram_user: bool
     already_linked: bool
+    remnawave_username_to_disable: str | None = None
 
 
 @dataclass(frozen=True)
@@ -65,12 +69,35 @@ class AutopayInfo:
     captured_at: datetime | None = None
 
 
+@dataclass(frozen=True)
+class PendingRegistrationCode:
+    token: str
+    email: str
+    code: str
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
+class PendingRegistrationData:
+    token: str
+    username: str
+    email: str
+    password_hash: str
+    expires_at: datetime
+
+
 _engine = create_engine(settings.database_url, pool_pre_ping=True) if settings.database_url else None
 _SessionLocal = sessionmaker(bind=_engine) if _engine is not None else None
 _demo_users: dict[str, SiteUser] = {}
 _demo_password_hashes: dict[str, str] = {}
 _demo_telegram_link_bonuses: set[int] = set()
+_demo_pending_registrations: dict[str, PendingRegistrationData] = {}
+_demo_pending_registration_codes: dict[str, str] = {}
 _SiteBase = declarative_base()
+
+
+def _utcnow_naive() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class SiteUserCredential(_SiteBase):
@@ -86,7 +113,7 @@ class SiteIdentity(_SiteBase):
     login = Column(String(256), primary_key=True)
     user_id = Column(BigInteger, nullable=False, index=True)
     password_hash = Column(String(256), nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class TelegramLinkBonus(_SiteBase):
@@ -95,7 +122,7 @@ class TelegramLinkBonus(_SiteBase):
     user_id = Column(BigInteger, primary_key=True)
     telegram_id = Column(BigInteger, nullable=False, index=True)
     days_added = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class SiteTrialGrant(_SiteBase):
@@ -103,7 +130,20 @@ class SiteTrialGrant(_SiteBase):
 
     user_id = Column(BigInteger, primary_key=True)
     days_added = Column(Integer, nullable=False)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
+
+
+class PendingSiteRegistration(_SiteBase):
+    __tablename__ = "site_pending_registrations"
+
+    token = Column(String(64), primary_key=True)
+    username = Column(String(256), nullable=False, index=True)
+    email = Column(String(256), nullable=False, index=True)
+    password_hash = Column(String(256), nullable=False)
+    code_hash = Column(String(64), nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 def database_enabled() -> bool:
@@ -125,6 +165,28 @@ def _common_models():
     return ReferralBonus, User, YkPayment, YkRecurrentPayment
 
 
+def _common_user_related_models():
+    try:
+        from common.models.db import (
+            EventLog,
+            ExpiredUsersNotification,
+            ExtendSubscriptionNotification,
+            NcUsersNotification,
+            UserTrafficProgress,
+        )
+    except ImportError as exc:
+        raise RuntimeError(
+            "The shared common submodule is required when database access is enabled."
+        ) from exc
+    return (
+        EventLog,
+        ExpiredUsersNotification,
+        ExtendSubscriptionNotification,
+        NcUsersNotification,
+        UserTrafficProgress,
+    )
+
+
 def _synthetic_telegram_id(username: str) -> int:
     digest = hashlib.sha256(username.encode("utf-8")).hexdigest()
     return -int(digest[:15], 16)
@@ -132,6 +194,64 @@ def _synthetic_telegram_id(username: str) -> int:
 
 def generate_site_username() -> str:
     return f"site_{secrets.token_hex(8)}"
+
+
+def normalize_login(value: str) -> str:
+    return value.strip().lower()
+
+
+def normalize_email(value: str) -> str:
+    return value.strip().lower()
+
+
+def generate_registration_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _registration_code_hash(token: str, code: str) -> str:
+    return hashlib.sha256(f"{token}:{code}".encode("utf-8")).hexdigest()
+
+
+def _sqlite_next_user_id(session, User) -> int | None:
+    if session.get_bind().dialect.name != "sqlite":
+        return None
+    return int(session.execute(select(func.coalesce(func.max(User.id), 0) + 1)).scalar_one())
+
+
+def _find_login_owner(session, User, login: str):
+    identity = session.get(SiteIdentity, login)
+    if identity is not None:
+        user = session.get(User, identity.user_id)
+        if user is not None:
+            return user
+    return session.execute(select(User).where(User.username == login)).scalar_one_or_none()
+
+
+def _add_site_identity(
+    session,
+    login: str | None,
+    user_id: int,
+    password_hash: str,
+) -> None:
+    if not login or not password_hash:
+        return
+
+    normalized_login = normalize_login(login)
+    if not normalized_login:
+        return
+
+    identity = session.get(SiteIdentity, normalized_login)
+    if identity is None:
+        session.add(
+            SiteIdentity(
+                login=normalized_login,
+                user_id=user_id,
+                password_hash=password_hash,
+            )
+        )
+    else:
+        identity.user_id = user_id
+        identity.password_hash = password_hash
 
 
 def _demo_user(username: str) -> SiteUser | None:
@@ -175,22 +295,34 @@ def get_user_by_id(user_id: int) -> SiteUser | None:
 
 
 def get_user_by_username(username: str) -> SiteUser | None:
-    username = username.strip().lower()
+    username = normalize_login(username)
     if not database_enabled():
         return _demo_user(username)
 
     _, User, _, _ = _common_models()
     with _SessionLocal() as session:
-        identity = session.get(SiteIdentity, username)
-        if identity is not None:
-            user = session.get(User, identity.user_id)
-            if user is not None:
-                return _site_user_from_db_user(user)
-
-        user = session.execute(select(User).where(User.username == username)).scalar_one_or_none()
+        user = _find_login_owner(session, User, username)
         if user is None:
             return None
         return _site_user_from_db_user(user)
+
+
+def get_user_by_telegram_id(telegram_id: int) -> SiteUser | None:
+    if telegram_id <= 0:
+        return None
+
+    if not database_enabled():
+        for user in _demo_users.values():
+            if user.telegram_id == telegram_id:
+                return user
+        return None
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        user = session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        ).scalar_one_or_none()
+        return _site_user_from_db_user(user) if user is not None else None
 
 
 def authenticate_site_user(login: str, password: str) -> SiteUser | None:
@@ -215,6 +347,8 @@ def authenticate_site_user(login: str, password: str) -> SiteUser | None:
         user = session.execute(select(User).where(User.username == login)).scalar_one_or_none()
         if user is None:
             return None
+        if login.startswith("site_"):
+            return None
         credential = session.get(SiteUserCredential, user.id)
         if credential is None or not verify_password(password, credential.password_hash):
             return None
@@ -222,7 +356,23 @@ def authenticate_site_user(login: str, password: str) -> SiteUser | None:
 
 
 def create_user(username: str | None, expire_at: datetime | None, password: str) -> SiteUser:
-    username = (username or generate_site_username()).strip().lower()
+    username = normalize_login(username or generate_site_username())
+    return create_user_with_password_hash(
+        username=username,
+        email=None,
+        expire_at=expire_at,
+        password_hash=hash_password(password),
+    )
+
+
+def create_user_with_password_hash(
+    username: str,
+    email: str | None,
+    expire_at: datetime | None,
+    password_hash: str,
+) -> SiteUser:
+    username = normalize_login(username or generate_site_username())
+    email = normalize_email(email) if email else None
 
     if not database_enabled():
         user = SiteUser(
@@ -233,24 +383,27 @@ def create_user(username: str | None, expire_at: datetime | None, password: str)
             telegram_id=_synthetic_telegram_id(username),
         )
         _demo_users[username] = user
-        _demo_password_hashes[username] = hash_password(password)
+        _demo_password_hashes[username] = password_hash
+        if email:
+            _demo_users[email] = user
+            _demo_password_hashes[email] = password_hash
         return user
 
     _, User, _, _ = _common_models()
     with _SessionLocal() as session:
-        existing_user = session.execute(
-            select(User).where(User.username == username)
-        ).scalar_one_or_none()
-        existing_identity = session.get(SiteIdentity, username)
-        if existing_user is not None or existing_identity is not None:
+        if _find_login_owner(session, User, username) is not None:
             raise ValueError("username already exists")
+        if email and _find_login_owner(session, User, email) is not None:
+            raise ValueError("email already exists")
 
-        password_hash = hash_password(password)
         db_user = User(
             username=username,
             telegram_id=_synthetic_telegram_id(username),
             expire_at=expire_at.replace(tzinfo=None) if expire_at and expire_at.tzinfo else expire_at,
         )
+        next_user_id = _sqlite_next_user_id(session, User)
+        if next_user_id is not None:
+            db_user.id = next_user_id
         session.add(db_user)
         try:
             session.flush()
@@ -260,13 +413,9 @@ def create_user(username: str | None, expire_at: datetime | None, password: str)
                     password_hash=password_hash,
                 )
             )
-            session.add(
-                SiteIdentity(
-                    login=username,
-                    user_id=db_user.id,
-                    password_hash=password_hash,
-                )
-            )
+            if email is None:
+                _add_site_identity(session, username, db_user.id, password_hash)
+            _add_site_identity(session, email, db_user.id, password_hash)
             session.add(
                 SiteTrialGrant(
                     user_id=db_user.id,
@@ -276,7 +425,7 @@ def create_user(username: str | None, expire_at: datetime | None, password: str)
             session.commit()
         except IntegrityError as exc:
             session.rollback()
-            raise ValueError("username already exists") from exc
+            raise ValueError("user already exists") from exc
         session.refresh(db_user)
         return SiteUser(
             id=db_user.id,
@@ -285,6 +434,237 @@ def create_user(username: str | None, expire_at: datetime | None, password: str)
             expire_at=db_user.expire_at,
             telegram_id=db_user.telegram_id,
         )
+
+
+def create_telegram_user(
+    telegram_id: int,
+    expire_at: datetime | None,
+    telegram_username: str | None = None,
+) -> SiteUser:
+    if telegram_id <= 0:
+        raise ValueError("telegram_id must be positive")
+
+    username = str(telegram_id)
+
+    if not database_enabled():
+        user = SiteUser(
+            id=len(_demo_users) + 1,
+            username=username,
+            display_name=username,
+            expire_at=expire_at,
+            telegram_id=telegram_id,
+        )
+        _demo_users[username] = user
+        return user
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        existing_user = session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        ).scalar_one_or_none()
+        if existing_user is not None:
+            return _site_user_from_db_user(existing_user)
+
+        username_owner = session.execute(
+            select(User).where(User.username == username)
+        ).scalar_one_or_none()
+        if username_owner is not None:
+            raise ValueError("username already exists")
+
+        values = {
+            "username": username,
+            "telegram_id": telegram_id,
+            "expire_at": (
+                expire_at.replace(tzinfo=None)
+                if expire_at and expire_at.tzinfo
+                else expire_at
+            ),
+        }
+        if hasattr(User, "telegram_username"):
+            values["telegram_username"] = telegram_username
+        next_user_id = _sqlite_next_user_id(session, User)
+        if next_user_id is not None:
+            values["id"] = next_user_id
+
+        db_user = User(**values)
+        session.add(db_user)
+        try:
+            session.flush()
+            session.add(
+                SiteTrialGrant(
+                    user_id=db_user.id,
+                    days_added=settings.trial_period_days,
+                )
+            )
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("telegram user already exists") from exc
+        session.refresh(db_user)
+        return _site_user_from_db_user(db_user)
+
+
+def create_pending_registration(
+    username: str | None,
+    email: str,
+    password: str,
+) -> PendingRegistrationCode:
+    username = normalize_login(username or generate_site_username())
+    email = normalize_email(email)
+    if not email or "@" not in email:
+        raise ValueError("invalid email")
+
+    token = secrets.token_urlsafe(32)
+    code = generate_registration_code()
+    expires_at = _utcnow_naive() + timedelta(
+        seconds=settings.registration_code_ttl_seconds
+    )
+    password_hash = hash_password(password)
+
+    if not database_enabled():
+        if get_user_by_username(username) is not None:
+            raise ValueError("username already exists")
+        if get_user_by_username(email) is not None:
+            raise ValueError("email already exists")
+        _demo_pending_registrations[token] = PendingRegistrationData(
+            token=token,
+            username=username,
+            email=email,
+            password_hash=password_hash,
+            expires_at=expires_at,
+        )
+        _demo_pending_registration_codes[token] = _registration_code_hash(token, code)
+        return PendingRegistrationCode(token, email, code, expires_at)
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        if _find_login_owner(session, User, username) is not None:
+            raise ValueError("username already exists")
+        if _find_login_owner(session, User, email) is not None:
+            raise ValueError("email already exists")
+
+        session.execute(
+            delete(PendingSiteRegistration).where(
+                PendingSiteRegistration.expires_at <= _utcnow_naive()
+            )
+        )
+        session.execute(
+            delete(PendingSiteRegistration).where(
+                (PendingSiteRegistration.username == username)
+                | (PendingSiteRegistration.email == email)
+            )
+        )
+        session.add(
+            PendingSiteRegistration(
+                token=token,
+                username=username,
+                email=email,
+                password_hash=password_hash,
+                code_hash=_registration_code_hash(token, code),
+                expires_at=expires_at,
+            )
+        )
+        session.commit()
+        return PendingRegistrationCode(token, email, code, expires_at)
+
+
+def get_pending_registration(token: str) -> PendingRegistrationData | None:
+    if not token:
+        return None
+
+    now = _utcnow_naive()
+    if not database_enabled():
+        pending = _demo_pending_registrations.get(token)
+        if pending is None or pending.expires_at <= now:
+            _demo_pending_registrations.pop(token, None)
+            _demo_pending_registration_codes.pop(token, None)
+            return None
+        return pending
+
+    with _SessionLocal() as session:
+        pending = session.get(PendingSiteRegistration, token)
+        if pending is None:
+            return None
+        if pending.expires_at <= now:
+            session.delete(pending)
+            session.commit()
+            return None
+        return PendingRegistrationData(
+            token=pending.token,
+            username=pending.username,
+            email=pending.email,
+            password_hash=pending.password_hash,
+            expires_at=pending.expires_at,
+        )
+
+
+def verify_pending_registration_code(token: str, code: str) -> PendingRegistrationData:
+    if not token:
+        raise ValueError("registration session expired")
+
+    normalized_code = code.strip()
+    if not normalized_code:
+        raise ValueError("invalid registration code")
+
+    now = _utcnow_naive()
+    expected_hash = _registration_code_hash(token, normalized_code)
+    if not database_enabled():
+        pending = _demo_pending_registrations.get(token)
+        code_hash = _demo_pending_registration_codes.get(token)
+        if pending is None or code_hash is None or pending.expires_at <= now:
+            _demo_pending_registrations.pop(token, None)
+            _demo_pending_registration_codes.pop(token, None)
+            raise ValueError("registration code expired")
+        if not hmac.compare_digest(expected_hash, code_hash):
+            raise ValueError("invalid registration code")
+        return pending
+
+    with _SessionLocal() as session:
+        pending = session.get(PendingSiteRegistration, token)
+        if pending is None or pending.expires_at <= now:
+            if pending is not None:
+                session.delete(pending)
+                session.commit()
+            raise ValueError("registration code expired")
+        if pending.attempts >= 5:
+            session.delete(pending)
+            session.commit()
+            raise ValueError("too many registration code attempts")
+        if not hmac.compare_digest(expected_hash, pending.code_hash):
+            pending.attempts += 1
+            session.commit()
+            raise ValueError("invalid registration code")
+        return PendingRegistrationData(
+            token=pending.token,
+            username=pending.username,
+            email=pending.email,
+            password_hash=pending.password_hash,
+            expires_at=pending.expires_at,
+        )
+
+
+def consume_pending_registration(
+    pending: PendingRegistrationData,
+    expire_at: datetime | None,
+) -> SiteUser:
+    user = create_user_with_password_hash(
+        username=pending.username,
+        email=pending.email,
+        expire_at=expire_at,
+        password_hash=pending.password_hash,
+    )
+
+    if not database_enabled():
+        _demo_pending_registrations.pop(pending.token, None)
+        _demo_pending_registration_codes.pop(pending.token, None)
+        return user
+
+    with _SessionLocal() as session:
+        pending_row = session.get(PendingSiteRegistration, pending.token)
+        if pending_row is not None:
+            session.delete(pending_row)
+            session.commit()
+    return user
 
 
 def user_has_site_password(user: SiteUser) -> bool:
@@ -364,6 +744,17 @@ def _has_trial_payment(session, model, user_id: int) -> bool:
         session.execute(
             select(model.id)
             .where(model.user_id == user_id, model.is_trial_promotion.is_(True))
+            .limit(1)
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
+def _has_any_payment(session, model, user_id: int) -> bool:
+    return (
+        session.execute(
+            select(model.id)
+            .where(model.user_id == user_id)
             .limit(1)
         ).scalar_one_or_none()
         is not None
@@ -460,6 +851,235 @@ def _merge_single_user_site_row(
         session.delete(source_row)
 
 
+def _merge_single_user_row(
+    session,
+    model,
+    source_user_id: int,
+    target_user_id: int,
+    *,
+    merge_fields: tuple[str, ...] = (),
+) -> None:
+    source_row = session.execute(
+        select(model).where(model.user_id == source_user_id)
+    ).scalar_one_or_none()
+    if source_row is None:
+        return
+
+    target_row = session.execute(
+        select(model).where(model.user_id == target_user_id)
+    ).scalar_one_or_none()
+    if target_row is None:
+        source_row.user_id = target_user_id
+        return
+
+    for field in merge_fields:
+        setattr(
+            target_row,
+            field,
+            bool(getattr(target_row, field)) or bool(getattr(source_row, field)),
+        )
+    session.delete(source_row)
+
+
+def _merge_site_identities(
+    session,
+    source_user_id: int,
+    target_user_id: int,
+) -> None:
+    for identity in session.execute(
+        select(SiteIdentity).where(SiteIdentity.user_id == source_user_id)
+    ).scalars():
+        existing = session.get(SiteIdentity, identity.login)
+        if existing is not None and existing.user_id == target_user_id:
+            session.delete(identity)
+        else:
+            identity.user_id = target_user_id
+
+
+def _merge_common_user_rows(
+    session,
+    source_user_id: int,
+    target_user_id: int,
+) -> None:
+    (
+        EventLog,
+        ExpiredUsersNotification,
+        ExtendSubscriptionNotification,
+        NcUsersNotification,
+        UserTrafficProgress,
+    ) = _common_user_related_models()
+    table_names = set(inspect(session.connection()).get_table_names())
+    models = (
+        EventLog,
+        ExpiredUsersNotification,
+        ExtendSubscriptionNotification,
+        NcUsersNotification,
+        UserTrafficProgress,
+    )
+    if not all(model.__tablename__ in table_names for model in models):
+        return
+
+    session.execute(
+        update(EventLog)
+        .where(EventLog.user_id == source_user_id)
+        .values(user_id=target_user_id)
+    )
+    _merge_single_user_row(
+        session,
+        ExpiredUsersNotification,
+        source_user_id,
+        target_user_id,
+    )
+    _merge_single_user_row(
+        session,
+        ExtendSubscriptionNotification,
+        source_user_id,
+        target_user_id,
+        merge_fields=("three_days_before", "one_day_before"),
+    )
+    _merge_single_user_row(
+        session,
+        NcUsersNotification,
+        source_user_id,
+        target_user_id,
+    )
+    _merge_single_user_row(
+        session,
+        UserTrafficProgress,
+        source_user_id,
+        target_user_id,
+        merge_fields=("passed_0", "passed_5mb", "passed_100mb"),
+    )
+
+
+def _merge_recurrent_payment(
+    session,
+    model,
+    source_user_id: int,
+    target_user_id: int,
+) -> bool:
+    table_name = model.__tablename__
+    source_recurrent = session.execute(
+        text(
+            f"SELECT id, captured_at FROM {table_name} "
+            "WHERE user_id = :source LIMIT 1"
+        ),
+        {"source": source_user_id},
+    ).first()
+    if source_recurrent is None:
+        return (
+            session.execute(
+                text(
+                    f"SELECT id FROM {table_name} "
+                    "WHERE user_id = :target LIMIT 1"
+                ),
+                {"target": target_user_id},
+            ).first()
+            is not None
+        )
+
+    target_recurrent = session.execute(
+        text(
+            f"SELECT id, captured_at FROM {table_name} "
+            "WHERE user_id = :target LIMIT 1"
+        ),
+        {"target": target_user_id},
+    ).first()
+    if target_recurrent is None:
+        session.execute(
+            text(f"UPDATE {table_name} SET user_id = :target WHERE user_id = :source"),
+            {"target": target_user_id, "source": source_user_id},
+        )
+        return True
+
+    target_captured_at = target_recurrent.captured_at or datetime.min
+    source_captured_at = source_recurrent.captured_at or datetime.min
+    if source_captured_at >= target_captured_at:
+        session.execute(
+            text(f"DELETE FROM {table_name} WHERE user_id = :target"),
+            {"target": target_user_id},
+        )
+        session.execute(
+            text(f"UPDATE {table_name} SET user_id = :target WHERE user_id = :source"),
+            {"target": target_user_id, "source": source_user_id},
+        )
+        return True
+
+    session.execute(
+        text(f"DELETE FROM {table_name} WHERE user_id = :source"),
+        {"source": source_user_id},
+    )
+    return True
+
+
+def _merge_referral_state(
+    session,
+    User,
+    ReferralBonus,
+    source_user,
+    target_user,
+) -> None:
+    source_id = source_user.id
+    target_id = target_user.id
+
+    if target_user.referred_by_id == source_id:
+        next_referrer_id = (
+            source_user.referred_by_id
+            if source_user.referred_by_id not in {source_id, target_id}
+            else None
+        )
+        target_user.referred_by_id = next_referrer_id
+        session.execute(
+            update(User)
+            .where(User.id == target_id)
+            .values(referred_by_id=next_referrer_id)
+        )
+    elif (
+        target_user.referred_by_id is None
+        and source_user.referred_by_id not in {None, source_id, target_id}
+    ):
+        target_user.referred_by_id = source_user.referred_by_id
+        session.execute(
+            update(User)
+            .where(User.id == target_id)
+            .values(referred_by_id=source_user.referred_by_id)
+        )
+
+    session.execute(
+        update(User)
+        .where(User.referred_by_id == source_id, User.id != target_id)
+        .values(referred_by_id=target_id)
+    )
+
+    for bonus in session.execute(
+        select(ReferralBonus).where(ReferralBonus.referrer_id == source_id)
+    ).scalars():
+        if bonus.referral_id in {source_id, target_id}:
+            session.delete(bonus)
+        else:
+            bonus.referrer_id = target_id
+
+    session.flush()
+    for bonus in session.execute(
+        select(ReferralBonus).where(ReferralBonus.referral_id == source_id)
+    ).scalars():
+        if bonus.referrer_id in {source_id, target_id}:
+            session.delete(bonus)
+            continue
+
+        existing = session.execute(
+            select(ReferralBonus).where(
+                ReferralBonus.referral_id == target_id,
+                ReferralBonus.bonus_type == bonus.bonus_type,
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            bonus.referral_id = target_id
+        else:
+            existing.days_added = (existing.days_added or 0) + (bonus.days_added or 0)
+            session.delete(bonus)
+
+
 def _merged_expire_at(
     target_expire_at: datetime | None,
     source_expire_at: datetime | None,
@@ -477,12 +1097,50 @@ def _merged_expire_at(
     return now + target_remaining + source_remaining + timedelta(days=bonus_days_added)
 
 
+def _add_or_update_site_identity(
+    session,
+    login: str | None,
+    user_id: int,
+    password_hash: str,
+) -> None:
+    if not login or not password_hash:
+        return
+
+    normalized_login = login.strip().lower()
+    if not normalized_login:
+        return
+
+    identity = session.get(SiteIdentity, normalized_login)
+    if identity is None:
+        session.add(
+            SiteIdentity(
+                login=normalized_login,
+                user_id=user_id,
+                password_hash=password_hash,
+            )
+        )
+    else:
+        identity.user_id = user_id
+        identity.password_hash = password_hash
+
+
 def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkResult:
+    if telegram_id <= 0:
+        raise ValueError("telegram_id must be positive")
+
     if not database_enabled():
         site_user = get_user_by_id(site_user_id)
         if site_user is None:
             raise ValueError("site user not found")
+        if (
+            site_user.telegram_id is not None
+            and site_user.telegram_id > 0
+            and site_user.telegram_id != telegram_id
+        ):
+            raise ValueError("site user is already linked to another Telegram account")
         already_linked = site_user.telegram_id == telegram_id
+        if already_linked:
+            return TelegramLinkResult(site_user, 0, False, True)
         bonus_days = 0
         if site_user.id not in _demo_telegram_link_bonuses:
             bonus_days = settings.telegram_link_bonus_days
@@ -503,23 +1161,45 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
         site_user = session.get(User, site_user_id)
         if site_user is None:
             raise ValueError("site user not found")
+        if (
+            site_user.telegram_id is not None
+            and site_user.telegram_id > 0
+            and site_user.telegram_id != telegram_id
+        ):
+            raise ValueError("site user is already linked to another Telegram account")
 
         telegram_user = session.execute(
             select(User).where(User.telegram_id == telegram_id)
         ).scalar_one_or_none()
-        target_user = telegram_user or site_user
-        source_user = site_user if telegram_user is not None and telegram_user.id != site_user.id else None
+        target_user = site_user
+        source_user = (
+            telegram_user
+            if telegram_user is not None and telegram_user.id != site_user.id
+            else None
+        )
         already_linked = telegram_user is not None and telegram_user.id == site_user.id
+        if already_linked:
+            return TelegramLinkResult(
+                user=_site_user_from_db_user(target_user),
+                bonus_days_added=0,
+                merged_existing_telegram_user=False,
+                already_linked=True,
+            )
 
         site_login = (site_user.username or str(site_user.id)).strip().lower()
-        source_credential = session.get(SiteUserCredential, site_user.id)
-        target_credential = session.get(SiteUserCredential, target_user.id)
-        now = datetime.utcnow()
-        source_free_time_to_skip = (
-            _site_trial_time_to_skip(session, site_user, source_credential, now)
-            if source_user is not None
-            else timedelta()
+        source_original_username = (
+            source_user.username or str(source_user.id) if source_user is not None else None
         )
+        source_expire_at = source_user.expire_at if source_user is not None else None
+        remnawave_username_to_disable = None
+        source_credential = (
+            session.get(SiteUserCredential, source_user.id)
+            if source_user is not None
+            else None
+        )
+        target_credential = session.get(SiteUserCredential, target_user.id)
+        now = _utcnow_naive()
+        source_free_time_to_skip = timedelta()
         free_period_used = _free_period_already_used(
             session,
             target_user,
@@ -538,88 +1218,67 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
                 now,
             )
         password_hash = (
-            source_credential.password_hash
-            if source_credential is not None
-            else target_credential.password_hash if target_credential is not None else ""
+            target_credential.password_hash
+            if target_credential is not None
+            else source_credential.password_hash if source_credential is not None else ""
         )
 
         if password_hash:
-            identity = session.get(SiteIdentity, site_login)
-            if identity is None:
-                session.add(
-                    SiteIdentity(
-                        login=site_login,
-                        user_id=target_user.id,
-                        password_hash=password_hash,
-                    )
-                )
-            else:
-                identity.user_id = target_user.id
-                identity.password_hash = password_hash
+            _add_or_update_site_identity(
+                session,
+                site_login,
+                target_user.id,
+                password_hash,
+            )
 
         if source_user is not None:
-            session.execute(
-                update(YkPayment)
-                .where(YkPayment.user_id == source_user.id)
-                .values(user_id=target_user.id)
-            )
-            target_recurrent = session.execute(
-                select(YkRecurrentPayment).where(YkRecurrentPayment.user_id == target_user.id)
-            ).scalar_one_or_none()
-            source_recurrent = session.execute(
-                select(YkRecurrentPayment).where(YkRecurrentPayment.user_id == source_user.id)
-            ).scalar_one_or_none()
-            if target_recurrent is None:
-                session.execute(
-                    update(YkRecurrentPayment)
-                    .where(YkRecurrentPayment.user_id == source_user.id)
-                    .values(user_id=target_user.id)
+            if not _has_any_payment(
+                session,
+                YkPayment,
+                source_user.id,
+            ) and not _has_any_payment(session, YkRecurrentPayment, source_user.id):
+                source_free_time_to_skip = _remaining_time(source_user.expire_at, now)
+            if source_original_username and source_original_username != site_login:
+                remnawave_username_to_disable = source_original_username
+                _add_or_update_site_identity(
+                    session,
+                    source_original_username,
+                    target_user.id,
+                    password_hash,
                 )
-            elif source_recurrent is not None:
-                target_captured_at = target_recurrent.captured_at or datetime.min
-                source_captured_at = source_recurrent.captured_at or datetime.min
-                if source_captured_at >= target_captured_at:
-                    target_recurrent.recurrent_payment_id = source_recurrent.recurrent_payment_id
-                    target_recurrent.currency = source_recurrent.currency
-                    target_recurrent.amount = source_recurrent.amount
-                    target_recurrent.subscription_period = source_recurrent.subscription_period
-                    target_recurrent.captured_at = source_recurrent.captured_at
-                    target_recurrent.is_trial_promotion = source_recurrent.is_trial_promotion
-                    target_recurrent.scheduled_payment = source_recurrent.scheduled_payment
-                session.delete(source_recurrent)
-
-            if target_user.referred_by_id is None and source_user.referred_by_id != target_user.id:
-                target_user.referred_by_id = source_user.referred_by_id
-            session.execute(
-                update(User)
-                .where(User.referred_by_id == source_user.id)
-                .values(referred_by_id=target_user.id)
-            )
-            for bonus in session.execute(
-                select(ReferralBonus).where(ReferralBonus.referrer_id == source_user.id)
-            ).scalars():
-                bonus.referrer_id = target_user.id
-            for bonus in session.execute(
-                select(ReferralBonus).where(ReferralBonus.referral_id == source_user.id)
-            ).scalars():
-                existing = session.execute(
-                    select(ReferralBonus).where(
-                        ReferralBonus.referral_id == target_user.id,
-                        ReferralBonus.bonus_type == bonus.bonus_type,
-                    )
-                ).scalar_one_or_none()
-                if existing is None:
-                    bonus.referral_id = target_user.id
-                else:
-                    existing.days_added = (existing.days_added or 0) + (bonus.days_added or 0)
-                    session.delete(bonus)
-
-            _merge_single_user_site_row(session, SiteTrialGrant, source_user.id, target_user.id)
-            _merge_single_user_site_row(session, TelegramLinkBonus, source_user.id, target_user.id)
-            session.flush()
             source_user.telegram_id = _synthetic_telegram_id(
                 f"merged:{source_user.id}:{telegram_id}"
             )
+            if source_user.username:
+                source_user.username = generate_site_username()
+            session.flush()
+
+            session.execute(
+                text("UPDATE yk_payments SET user_id = :target WHERE user_id = :source"),
+                {"target": target_user.id, "source": source_user.id},
+            )
+            if _merge_recurrent_payment(
+                session,
+                YkRecurrentPayment,
+                source_user.id,
+                target_user.id,
+            ):
+                target_user.autopay_allow = True
+
+            _merge_referral_state(session, User, ReferralBonus, source_user, target_user)
+
+            _merge_common_user_rows(session, source_user.id, target_user.id)
+            _merge_site_identities(session, source_user.id, target_user.id)
+            _merge_single_user_site_row(
+                session,
+                SiteUserCredential,
+                source_user.id,
+                target_user.id,
+            )
+            _merge_single_user_site_row(session, SiteTrialGrant, source_user.id, target_user.id)
+            _merge_single_user_site_row(session, TelegramLinkBonus, source_user.id, target_user.id)
+            session.flush()
+            session.delete(source_user)
 
         bonus = session.get(TelegramLinkBonus, target_user.id)
         bonus_days_added = 0
@@ -637,7 +1296,7 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
         if source_user is not None:
             target_user.expire_at = _merged_expire_at(
                 target_user.expire_at,
-                site_user.expire_at,
+                source_expire_at,
                 now=now,
                 source_free_time_to_skip=source_free_time_to_skip,
                 bonus_days_added=bonus_days_added,
@@ -649,7 +1308,7 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
             target_user.expire_at = base_expire_at + timedelta(days=bonus_days_added)
         target_user.telegram_id = telegram_id
 
-        if target_credential is None and password_hash:
+        if session.get(SiteUserCredential, target_user.id) is None and password_hash:
             session.add(
                 SiteUserCredential(
                     user_id=target_user.id,
@@ -668,6 +1327,7 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
             bonus_days_added=bonus_days_added,
             merged_existing_telegram_user=source_user is not None,
             already_linked=already_linked,
+            remnawave_username_to_disable=remnawave_username_to_disable,
         )
 
 
