@@ -1,11 +1,13 @@
 import hmac
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
@@ -23,15 +25,19 @@ from app.repository import (
     authenticate_site_user,
     cancel_autopay,
     consume_pending_registration,
+    create_oauth_user,
     create_pending_registration,
     create_telegram_user,
+    generate_site_username,
     get_autopay_info,
     get_pending_registration,
     get_referrals,
     get_user_by_id,
+    get_user_by_oauth_identity,
     get_user_by_telegram_id,
     get_user_by_username,
     initialize_site_storage,
+    link_oauth_identity,
     link_telegram_account,
     normalize_email,
     user_has_site_password,
@@ -40,6 +46,15 @@ from app.repository import (
 from app.security import verify_telegram_login
 from app.tariffs import get_tariffs
 from app.tariffs import get_tariff_by_id
+from app.yandex_oauth import (
+    YandexOAuthError,
+    build_yandex_authorize_url,
+    exchange_yandex_code,
+    fetch_yandex_user,
+    yandex_oauth_enabled,
+    yandex_origin,
+    yandex_suggest_token_uri,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -95,6 +110,10 @@ def login_context(request: Request, error: str | None = None) -> dict:
         "error": error or request.session.pop("login_error", None),
         "telegram_bot_username": settings.telegram_bot_username,
         "telegram_auth_url": f"{settings.public_base_url}/auth/telegram/callback",
+        "yandex_oauth_enabled": yandex_oauth_enabled(),
+        "yandex_client_id": settings.yandex_oauth_client_id,
+        "yandex_origin": yandex_origin(),
+        "yandex_token_uri": yandex_suggest_token_uri(),
     }
 
 
@@ -339,6 +358,124 @@ async def telegram_login_callback(request: Request):
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
+
+
+async def _login_yandex_user(request: Request, yandex_user):
+    user = get_user_by_oauth_identity("yandex", yandex_user.provider_user_id)
+    if user is None:
+        existing_user = get_user_by_username(yandex_user.email)
+        if existing_user is not None:
+            user = link_oauth_identity(
+                existing_user.id,
+                "yandex",
+                yandex_user.provider_user_id,
+                yandex_user.email,
+            )
+        else:
+            username = generate_site_username()
+            remnawave_user = await create_remnawave_user(username)
+            if remnawave_user is None:
+                raise RuntimeError("remnawave user was not created")
+            user = create_oauth_user(
+                "yandex",
+                yandex_user.provider_user_id,
+                yandex_user.email,
+                username,
+                remnawave_user.expire_at,
+            )
+
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    return user
+
+
+@app.get("/auth/yandex/start")
+def yandex_login_start(request: Request):
+    if not yandex_oauth_enabled():
+        request.session["login_error"] = "Вход через Яндекс пока не настроен."
+        return RedirectResponse("/login", status_code=303)
+
+    state = secrets.token_urlsafe(32)
+    request.session["yandex_oauth_state"] = state
+    try:
+        authorize_url = build_yandex_authorize_url(state)
+    except YandexOAuthError:
+        request.session["login_error"] = "Вход через Яндекс пока не настроен."
+        return RedirectResponse("/login", status_code=303)
+    return RedirectResponse(authorize_url, status_code=303)
+
+
+@app.get("/auth/yandex/callback")
+async def yandex_login_callback(request: Request):
+    expected_state = request.session.pop("yandex_oauth_state", None)
+    returned_state = request.query_params.get("state")
+    if not expected_state or returned_state != expected_state:
+        request.session["login_error"] = "Не удалось проверить вход через Яндекс."
+        return RedirectResponse("/login", status_code=303)
+
+    if request.query_params.get("error"):
+        request.session["login_error"] = "Яндекс не подтвердил вход."
+        return RedirectResponse("/login", status_code=303)
+
+    code = request.query_params.get("code", "").strip()
+    if not code:
+        request.session["login_error"] = "Яндекс не передал код входа."
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        access_token = await run_in_threadpool(exchange_yandex_code, code)
+        yandex_user = await run_in_threadpool(fetch_yandex_user, access_token)
+    except YandexOAuthError:
+        request.session["login_error"] = "Не удалось получить профиль Яндекса."
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        await _login_yandex_user(request, yandex_user)
+    except (RuntimeError, ValueError):
+        request.session["login_error"] = (
+            "Не удалось создать вход через Яндекс. Попробуй позже."
+        )
+        return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/cabinet", status_code=303)
+
+
+@app.get("/auth/yandex/token")
+def yandex_token_page(request: Request):
+    if not yandex_oauth_enabled():
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse(
+        "yandex_token.html",
+        {
+            "request": request,
+            "user": current_user(request),
+            "yandex_origin": yandex_origin(),
+        },
+    )
+
+
+@app.post("/auth/yandex/login")
+async def yandex_widget_login(request: Request, access_token: str = Form("")):
+    if not yandex_oauth_enabled():
+        return JSONResponse(
+            {"ok": False, "redirect": "/login", "error": "not_configured"},
+            status_code=400,
+        )
+    if not access_token.strip():
+        return JSONResponse(
+            {"ok": False, "redirect": "/login", "error": "missing_token"},
+            status_code=400,
+        )
+
+    try:
+        yandex_user = await run_in_threadpool(fetch_yandex_user, access_token.strip())
+        await _login_yandex_user(request, yandex_user)
+    except (YandexOAuthError, RuntimeError, ValueError):
+        request.session["login_error"] = "Не удалось войти через Яндекс."
+        return JSONResponse(
+            {"ok": False, "redirect": "/login", "error": "login_failed"},
+            status_code=400,
+        )
+    return JSONResponse({"ok": True, "redirect": "/cabinet"})
 
 
 @app.get("/logout")

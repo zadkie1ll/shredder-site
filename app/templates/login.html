@@ -33,6 +33,17 @@
       {% endif %}
     </div>
 
+    <div class="sh-oauth-login">
+      {% if yandex_oauth_enabled %}
+        <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
+      {% else %}
+        <button class="sh-oauth-button sh-oauth-button--yandex" type="button" disabled>
+          <span class="sh-oauth-button__mark">Я</span>
+          <span>Яндекс не настроен</span>
+        </button>
+      {% endif %}
+    </div>
+
     <div class="sh-login-divider"><span>или</span></div>
 
     <label class="sh-login-field">
@@ -53,4 +64,60 @@
     </div>
   </form>
 </section>
+{% endblock %}
+
+{% block scripts %}
+{% if yandex_oauth_enabled %}
+<script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
+<script>
+  (function () {
+    var container = document.getElementById("yandex-auth-container");
+    if (!container || !window.YaAuthSuggest) {
+      return;
+    }
+
+    window.YaAuthSuggest.init(
+      {
+        client_id: container.dataset.clientId,
+        response_type: "token",
+        redirect_uri: container.dataset.tokenUri
+      },
+      container.dataset.origin,
+      {
+        view: "button",
+        parentId: "yandex-auth-container",
+        buttonView: "main",
+        buttonTheme: "dark",
+        buttonSize: "l",
+        buttonBorderRadius: 8
+      }
+    )
+      .then(function (result) {
+        return result.handler();
+      })
+      .then(function (data) {
+        if (!data || !data.access_token) {
+          throw new Error("missing_yandex_token");
+        }
+
+        var body = new URLSearchParams();
+        body.set("access_token", data.access_token);
+        return fetch("/auth/yandex/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString()
+        });
+      })
+      .then(function (response) {
+        return response.json();
+      })
+      .then(function (result) {
+        window.location.href = result.redirect || "/cabinet";
+      })
+      .catch(function () {
+        window.location.href = "/auth/yandex/start";
+      });
+  })();
+</script>
+{% endif %}
 {% endblock %}

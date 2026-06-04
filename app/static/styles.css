@@ -1579,6 +1579,65 @@ th {
   max-width: 100%;
 }
 
+.sh-oauth-login {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+  min-height: 48px;
+}
+
+.sh-yandex-widget {
+  display: flex;
+  justify-content: center;
+  width: min(100%, 290px);
+}
+
+.sh-oauth-button {
+  align-items: center;
+  background: #fc3f1d;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: Montserrat, Rubik, sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  gap: 10px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 48px;
+  padding: 0 18px;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  width: min(100%, 290px);
+}
+
+.sh-oauth-button:hover {
+  box-shadow: 0 12px 26px rgba(252, 63, 29, 0.28);
+  transform: translateY(-1px);
+}
+
+.sh-oauth-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.sh-oauth-button__mark {
+  align-items: center;
+  background: white;
+  border-radius: 50%;
+  color: #fc3f1d;
+  display: inline-flex;
+  flex: 0 0 24px;
+  font-size: 16px;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
 .sh-login-divider {
   align-items: center;
   color: rgba(255, 255, 255, 0.5);

@@ -7,15 +7,19 @@ from sqlalchemy.orm import sessionmaker
 from app import repository
 from app.repository import (
     SiteIdentity,
+    SiteOAuthIdentity,
     SiteTrialGrant,
     SiteUserCredential,
     TelegramLinkBonus,
     authenticate_site_user,
     consume_pending_registration,
+    create_oauth_user,
     create_pending_registration,
     create_telegram_user,
+    get_user_by_oauth_identity,
     get_user_by_telegram_id,
     link_telegram_account,
+    link_oauth_identity,
     verify_pending_registration_code,
 )
 from app.security import hash_password
@@ -332,6 +336,62 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
             email_identity = session.get(SiteIdentity, "user@example.com")
 
         self.assertEqual(email_identity.user_id, user.id)
+
+    def test_creates_yandex_oauth_only_user(self):
+        now = utcnow_naive().replace(microsecond=0)
+
+        user = create_oauth_user(
+            "yandex",
+            "ya-123",
+            "User@Example.COM",
+            "site_yandex",
+            now + timedelta(days=7),
+        )
+        found = get_user_by_oauth_identity("yandex", "ya-123")
+
+        self.assertEqual(found.id, user.id)
+        self.assertIsNone(authenticate_site_user("user@example.com", "secret123"))
+        with self.sessionmaker() as session:
+            oauth_identity = session.get(SiteOAuthIdentity, "yandex:ya-123")
+            credential = session.get(SiteUserCredential, user.id)
+            trial_grant = session.get(SiteTrialGrant, user.id)
+
+        self.assertEqual(oauth_identity.user_id, user.id)
+        self.assertEqual(oauth_identity.email, "user@example.com")
+        self.assertIsNone(credential)
+        self.assertEqual(trial_grant.days_added, 7)
+
+    def test_yandex_oauth_links_existing_email_user(self):
+        now = utcnow_naive().replace(microsecond=0)
+        registration = create_pending_registration(
+            None,
+            "user@example.com",
+            "secret123",
+        )
+        pending = verify_pending_registration_code(
+            registration.token,
+            registration.code,
+        )
+        user = consume_pending_registration(pending, now + timedelta(days=7))
+
+        linked_user = link_oauth_identity(
+            user.id,
+            "yandex",
+            "ya-123",
+            "USER@EXAMPLE.COM",
+        )
+        found = get_user_by_oauth_identity("yandex", "ya-123")
+
+        self.assertEqual(linked_user.id, user.id)
+        self.assertEqual(found.id, user.id)
+        self.assertEqual(
+            authenticate_site_user("user@example.com", "secret123").id,
+            user.id,
+        )
+        with self.sessionmaker() as session:
+            oauth_identity = session.get(SiteOAuthIdentity, "yandex:ya-123")
+
+        self.assertEqual(oauth_identity.email, "user@example.com")
 
     def test_merged_account_can_login_by_telegram_id(self):
         now = utcnow_naive().replace(microsecond=0)

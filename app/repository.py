@@ -90,6 +90,7 @@ _engine = create_engine(settings.database_url, pool_pre_ping=True) if settings.d
 _SessionLocal = sessionmaker(bind=_engine) if _engine is not None else None
 _demo_users: dict[str, SiteUser] = {}
 _demo_password_hashes: dict[str, str] = {}
+_demo_oauth_identities: dict[str, str] = {}
 _demo_telegram_link_bonuses: set[int] = set()
 _demo_pending_registrations: dict[str, PendingRegistrationData] = {}
 _demo_pending_registration_codes: dict[str, str] = {}
@@ -114,6 +115,18 @@ class SiteIdentity(_SiteBase):
     user_id = Column(BigInteger, nullable=False, index=True)
     password_hash = Column(String(256), nullable=False)
     created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
+
+
+class SiteOAuthIdentity(_SiteBase):
+    __tablename__ = "site_oauth_identities"
+
+    identity_key = Column(String(512), primary_key=True)
+    provider = Column(String(64), nullable=False, index=True)
+    provider_user_id = Column(String(256), nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
+    email = Column(String(256), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=_utcnow_naive)
+    updated_at = Column(DateTime, nullable=False, default=_utcnow_naive)
 
 
 class TelegramLinkBonus(_SiteBase):
@@ -224,7 +237,21 @@ def _find_login_owner(session, User, login: str):
         user = session.get(User, identity.user_id)
         if user is not None:
             return user
+    oauth_identity = session.execute(
+        select(SiteOAuthIdentity)
+        .where(SiteOAuthIdentity.email == login)
+        .order_by(SiteOAuthIdentity.created_at.asc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if oauth_identity is not None:
+        user = session.get(User, oauth_identity.user_id)
+        if user is not None:
+            return user
     return session.execute(select(User).where(User.username == login)).scalar_one_or_none()
+
+
+def _oauth_identity_key(provider: str, provider_user_id: str) -> str:
+    return f"{normalize_login(provider)}:{provider_user_id.strip()}"
 
 
 def _add_site_identity(
@@ -500,6 +527,160 @@ def create_telegram_user(
         except IntegrityError as exc:
             session.rollback()
             raise ValueError("telegram user already exists") from exc
+        session.refresh(db_user)
+        return _site_user_from_db_user(db_user)
+
+
+def get_user_by_oauth_identity(provider: str, provider_user_id: str) -> SiteUser | None:
+    provider = normalize_login(provider)
+    provider_user_id = provider_user_id.strip()
+    if not provider or not provider_user_id:
+        return None
+
+    identity_key = _oauth_identity_key(provider, provider_user_id)
+    if not database_enabled():
+        username = _demo_oauth_identities.get(identity_key)
+        if username is None:
+            return None
+        return _demo_users.get(username)
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        identity = session.get(SiteOAuthIdentity, identity_key)
+        if identity is None:
+            return None
+        user = session.get(User, identity.user_id)
+        return _site_user_from_db_user(user) if user is not None else None
+
+
+def link_oauth_identity(
+    user_id: int,
+    provider: str,
+    provider_user_id: str,
+    email: str | None,
+) -> SiteUser:
+    provider = normalize_login(provider)
+    provider_user_id = provider_user_id.strip()
+    email = normalize_email(email) if email else None
+    if not provider or not provider_user_id:
+        raise ValueError("invalid oauth identity")
+
+    identity_key = _oauth_identity_key(provider, provider_user_id)
+    if not database_enabled():
+        user = get_user_by_id(user_id)
+        if user is None:
+            raise ValueError("user not found")
+        existing_username = _demo_oauth_identities.get(identity_key)
+        if existing_username and existing_username != user.username:
+            raise ValueError("oauth identity already linked")
+        _demo_oauth_identities[identity_key] = user.username
+        if email:
+            _demo_users[email] = user
+        return user
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        user = session.get(User, user_id)
+        if user is None:
+            raise ValueError("user not found")
+        existing = session.get(SiteOAuthIdentity, identity_key)
+        if existing is not None and existing.user_id != user_id:
+            raise ValueError("oauth identity already linked")
+        if existing is None:
+            session.add(
+                SiteOAuthIdentity(
+                    identity_key=identity_key,
+                    provider=provider,
+                    provider_user_id=provider_user_id,
+                    user_id=user_id,
+                    email=email,
+                )
+            )
+        else:
+            existing.email = email
+            existing.updated_at = _utcnow_naive()
+        session.commit()
+        session.refresh(user)
+        return _site_user_from_db_user(user)
+
+
+def create_oauth_user(
+    provider: str,
+    provider_user_id: str,
+    email: str,
+    username: str,
+    expire_at: datetime | None,
+) -> SiteUser:
+    provider = normalize_login(provider)
+    provider_user_id = provider_user_id.strip()
+    email = normalize_email(email)
+    username = normalize_login(username or generate_site_username())
+    if not provider or not provider_user_id:
+        raise ValueError("invalid oauth identity")
+    if not email or "@" not in email:
+        raise ValueError("invalid email")
+
+    identity_key = _oauth_identity_key(provider, provider_user_id)
+    if not database_enabled():
+        if get_user_by_oauth_identity(provider, provider_user_id) is not None:
+            raise ValueError("oauth identity already exists")
+        if get_user_by_username(email) is not None:
+            raise ValueError("email already exists")
+        user = SiteUser(
+            id=len({user.id for user in _demo_users.values()}) + 1,
+            username=username,
+            display_name=username,
+            expire_at=expire_at,
+            telegram_id=_synthetic_telegram_id(username),
+        )
+        _demo_users[username] = user
+        _demo_users[email] = user
+        _demo_oauth_identities[identity_key] = username
+        return user
+
+    _, User, _, _ = _common_models()
+    with _SessionLocal() as session:
+        if session.get(SiteOAuthIdentity, identity_key) is not None:
+            raise ValueError("oauth identity already exists")
+        if _find_login_owner(session, User, username) is not None:
+            raise ValueError("username already exists")
+        if _find_login_owner(session, User, email) is not None:
+            raise ValueError("email already exists")
+
+        db_user = User(
+            username=username,
+            telegram_id=_synthetic_telegram_id(username),
+            expire_at=(
+                expire_at.replace(tzinfo=None)
+                if expire_at and expire_at.tzinfo
+                else expire_at
+            ),
+        )
+        next_user_id = _sqlite_next_user_id(session, User)
+        if next_user_id is not None:
+            db_user.id = next_user_id
+        session.add(db_user)
+        try:
+            session.flush()
+            session.add(
+                SiteOAuthIdentity(
+                    identity_key=identity_key,
+                    provider=provider,
+                    provider_user_id=provider_user_id,
+                    user_id=db_user.id,
+                    email=email,
+                )
+            )
+            session.add(
+                SiteTrialGrant(
+                    user_id=db_user.id,
+                    days_added=settings.trial_period_days,
+                )
+            )
+            session.commit()
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("oauth user already exists") from exc
         session.refresh(db_user)
         return _site_user_from_db_user(db_user)
 
@@ -896,6 +1077,21 @@ def _merge_site_identities(
             identity.user_id = target_user_id
 
 
+def _merge_oauth_identities(
+    session,
+    source_user_id: int,
+    target_user_id: int,
+) -> None:
+    for identity in session.execute(
+        select(SiteOAuthIdentity).where(SiteOAuthIdentity.user_id == source_user_id)
+    ).scalars():
+        existing = session.get(SiteOAuthIdentity, identity.identity_key)
+        if existing is not None and existing.user_id == target_user_id:
+            session.delete(identity)
+        else:
+            identity.user_id = target_user_id
+
+
 def _merge_common_user_rows(
     session,
     source_user_id: int,
@@ -1269,6 +1465,7 @@ def link_telegram_account(site_user_id: int, telegram_id: int) -> TelegramLinkRe
 
             _merge_common_user_rows(session, source_user.id, target_user.id)
             _merge_site_identities(session, source_user.id, target_user.id)
+            _merge_oauth_identities(session, source_user.id, target_user.id)
             _merge_single_user_site_row(
                 session,
                 SiteUserCredential,

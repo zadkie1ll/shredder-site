@@ -54,6 +54,9 @@ class Settings:
     telegram_bot_token: str | None
     telegram_link_bonus_days: int
     telegram_login_max_age_seconds: int
+    yandex_oauth_client_id: str | None
+    yandex_oauth_client_secret: str | None
+    yandex_oauth_scopes: str
     one_click_redirect_url: str | None
     registration_code_ttl_seconds: int
     smtp_host: str | None
@@ -92,6 +95,8 @@ def load_settings() -> Settings:
     telegram_bot_token = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN") or os.getenv(
         "MI_VPN_BOT_TOKEN"
     )
+    yandex_oauth_client_id = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_ID")
+    yandex_oauth_client_secret = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_SECRET")
     smtp_host = os.getenv("SHREDDER_SITE_SMTP_HOST")
     smtp_from_email = os.getenv(
         "SHREDDER_SITE_SMTP_FROM_EMAIL",
@@ -112,6 +117,11 @@ def load_settings() -> Settings:
             raise ValueError("YooKassa envs must be set in production.")
         if not telegram_bot_username or not telegram_bot_token:
             raise ValueError("Telegram bot username and token must be set in production.")
+        if bool(yandex_oauth_client_id) != bool(yandex_oauth_client_secret):
+            raise ValueError(
+                "Both SHREDDER_SITE_YANDEX_CLIENT_ID and "
+                "SHREDDER_SITE_YANDEX_CLIENT_SECRET must be set."
+            )
 
     return Settings(
         environment=environment,
@@ -140,6 +150,12 @@ def load_settings() -> Settings:
         telegram_login_max_age_seconds=_read_int(
             "SHREDDER_SITE_TELEGRAM_LOGIN_MAX_AGE_SECONDS",
             86400,
+        ),
+        yandex_oauth_client_id=yandex_oauth_client_id,
+        yandex_oauth_client_secret=yandex_oauth_client_secret,
+        yandex_oauth_scopes=os.getenv(
+            "SHREDDER_SITE_YANDEX_SCOPES",
+            "login:info,login:email",
         ),
         one_click_redirect_url=one_click_redirect_url,
         registration_code_ttl_seconds=_read_int(
