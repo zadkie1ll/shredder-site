@@ -158,6 +158,8 @@ def index(request: Request):
 
 @app.get("/login")
 def login_page(request: Request):
+    if current_user(request) is not None:
+        return RedirectResponse("/cabinet", status_code=303)
     return templates.TemplateResponse(
         "login.html",
         login_context(request),
@@ -554,7 +556,7 @@ async def google_login_callback(request: Request):
 @app.get("/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse("/login", status_code=303)
 
 
 @app.post("/cabinet/pay")
