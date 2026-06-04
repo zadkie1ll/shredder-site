@@ -1625,6 +1625,12 @@ th {
   background: rgba(34, 158, 217, 0.16);
 }
 
+.sh-social-button--telegram img,
+.sh-social-button--yandex img {
+  height: 46px;
+  width: 46px;
+}
+
 .sh-social-button--google {
   background: white;
 }
