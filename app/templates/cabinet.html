@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% set title = "Личный кабинет | Shredder VPN" %}
+{% set title = "Личный кабинет | Shredder" %}
 {% set body_class = "shredder-page sh-cabinet-page" %}
 
 {% block content %}
 <section class="sh-cabinet" data-cabinet-tabs>
   <aside class="sh-cabinet-sidebar">
     <a class="sh-cabinet-logo" href="/">
-      <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder VPN">
+      <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder">
     </a>
 
     <div class="sh-cabinet-user">
@@ -26,7 +26,7 @@
 
     <nav class="sh-cabinet-nav" id="cabinet-nav" aria-label="Разделы кабинета" data-cabinet-nav>
       <div class="sh-cabinet-nav__head">
-        <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder VPN">
+        <img src="{{ url_for('static', path='/figma-assets/hero-logo.svg') }}" alt="Shredder">
         <span>Меню</span>
       </div>
       <a href="#overview" data-cabinet-tab="overview" class="is-active">Обзор</a>
@@ -43,7 +43,7 @@
   <div class="sh-cabinet-main">
     <header class="sh-cabinet-top">
       <div>
-        <p>Shredder VPN</p>
+        <p>Shredder</p>
         <h1 data-cabinet-title>Обзор</h1>
       </div>
       <div class="sh-cabinet-top__actions">
@@ -179,7 +179,7 @@
         <div class="sh-panel-head">
           <div>
             <p>Установка</p>
-            <h2 id="setup-title">Подключение VPN</h2>
+            <h2 id="setup-title">Подключение</h2>
           </div>
           <button class="sh-mini-button" type="button" data-copy-active-key>Скопировать ключ</button>
         </div>
@@ -251,7 +251,7 @@
 
           <div class="sh-install-panel" data-platform-panel="windows">
             <span>Windows</span>
-            <strong>Для настройки VPN на Windows</strong>
+            <strong>Для настройки на Windows</strong>
             <ol>
               <li>Скачайте <a href="https://github.com/pluralplay/FlClashX/releases/download/v0.2.1/FlClashX-0.2.1-windows-amd64-setup.exe" target="_blank" rel="noopener">FlClash</a>.</li>
               <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
@@ -284,9 +284,9 @@
             {% if telegram_link_status.startswith("telegram_linked_bonus:") %}
               Telegram привязан. Бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен.
             {% elif telegram_link_status.startswith("telegram_linked_bonus_sync_failed:") %}
-              Telegram привязан, бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен. Синхронизация VPN еще не завершилась, попробуй открыть кабинет чуть позже.
+              Telegram привязан, бонус +{{ telegram_link_status.split(":")[1] }} дн. начислен. Синхронизация еще не завершилась, попробуй открыть кабинет чуть позже.
             {% elif telegram_link_status == "telegram_linked_sync_failed" %}
-              Telegram привязан. Синхронизация VPN еще не завершилась, попробуй открыть кабинет чуть позже.
+              Telegram привязан. Синхронизация еще не завершилась, попробуй открыть кабинет чуть позже.
             {% elif telegram_link_status == "telegram_linked" %}
               Telegram привязан.
             {% elif telegram_link_status == "telegram_already_linked" %}

@@ -18,11 +18,11 @@ def _send_registration_code_sync(email: str, code: str) -> None:
     message = EmailMessage()
     message["From"] = settings.smtp_from_email
     message["To"] = email
-    message["Subject"] = "Код регистрации Shredder VPN"
+    message["Subject"] = "Код регистрации Shredder"
     message.set_content(
         "\n".join(
             [
-                "Твой код регистрации Shredder VPN:",
+                "Твой код регистрации Shredder:",
                 "",
                 code,
                 "",

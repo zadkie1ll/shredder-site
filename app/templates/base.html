@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title or "Shredder VPN" }}</title>
+    <title>{{ title or "Shredder" }}</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="{{ url_for('static', path='/icons/icon-180.png') }}">
     <meta name="theme-color" content="#9cff1a">
@@ -13,7 +13,7 @@
   </head>
   <body class="{{ body_class|default('') }}">
     <header class="topbar">
-      <a class="brand" href="/">Shredder VPN</a>
+      <a class="brand" href="/">Shredder</a>
       <nav class="nav">
         <a href="/#tariffs">Тарифы</a>
         {% if user %}

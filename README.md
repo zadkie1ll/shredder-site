@@ -1,6 +1,6 @@
 # Shredder Site
 
-Сайт и личный кабинет Shredder VPN.
+Сайт и личный кабинет Shredder.
 
 Схема базы данных не описывается в этом проекте. Таблицы, модели и миграции живут
 в общем модуле `common`, как и в остальных сервисах Shredder.
@@ -45,9 +45,9 @@ docker compose up --build
 - `SHREDDER_SITE_YANDEX_SCOPES` — права Яндекс OAuth, по умолчанию `login:info,login:email`;
 - `SHREDDER_SITE_GOOGLE_CLIENT_ID` / `SHREDDER_SITE_GOOGLE_CLIENT_SECRET` — приложение Google OAuth; Authorized redirect URI: `${SHREDDER_SITE_PUBLIC_BASE_URL}/auth/google/callback`;
 - `SHREDDER_SITE_GOOGLE_SCOPES` — права Google OAuth, по умолчанию `openid email profile`;
-- `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` или `MI_VPN_BOT_REDIRECT_URL` — redirect-префикс для one-click установки, как в VPN-боте;
-- `SHREDDER_SITE_DATABASE_URL` или `MI_VPN_BOT_POSTGRES_*` — доступ к общей Postgres-базе;
-- `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` или `MI_VPN_BOT_RWMS_*` — gRPC endpoint RWMS/Remnawave.
+- `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` — redirect-префикс для one-click установки;
+- `SHREDDER_SITE_DATABASE_URL` — доступ к общей Postgres-базе;
+- `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` — gRPC endpoint RWMS/Remnawave.
 - `SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED` — включает legacy-режим урезанной подписки через internal squads, по умолчанию выключен;
 - `SHREDDER_SITE_INTERNAL_SQUADS_UUIDS` — legacy-список squad UUID через запятую, применяется только если включен `SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED`.
 
@@ -57,7 +57,7 @@ docker compose up --build
 
 - главная страница с тарифами;
 - страница логина;
-- вход через Telegram для пользователей VPNbot и сайта;
+- вход через Telegram для пользователей бота и сайта;
 - вход через Яндекс OAuth со склейкой аккаунта по email;
 - регистрация по почте, паролю и коду на почту, которая создает пользователя в RWMS/Remnawave и выдает пробный доступ;
 - личный кабинет с установкой, подпиской и рефералами;

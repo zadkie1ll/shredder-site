@@ -684,7 +684,7 @@ th {
 }
 
 .shredder-page .brand::after {
-  content: "VPS СЕРВИС";
+  content: "SHREDDER";
   display: block;
   font-family: Rubik, sans-serif;
   font-size: 10px;

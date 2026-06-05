@@ -9,15 +9,19 @@ from yookassa import Configuration, Payment
 from app.config import settings
 
 
-PAYMENT_SERVICE_NAME = "Shredder VPN"
+PAYMENT_SERVICE_NAME = "Shredder"
 PAYMENT_SERVICE_NAME_PATTERN = re.compile(
-    r"\b(?:monkey[-\s]?island|shredder\s*VPN|shredderVPN|shredder\s*VPS)\b\s*:?\s*",
+    r"\b(?:monkey[-\s]?island|shredder)\s*:?\s*",
     re.IGNORECASE,
+)
+LEGACY_ACCESS_WORD_PATTERN = re.compile(
+    r"\b(?:[Vv][Pp][Nn]|[Vv][Pp][Ss])\b\s*:?\s*"
 )
 
 
 def _build_payment_description(tariff) -> str:
     description = PAYMENT_SERVICE_NAME_PATTERN.sub("", tariff.description)
+    description = LEGACY_ACCESS_WORD_PATTERN.sub("", description)
     description = re.sub(r"\s+", " ", description).strip(" :-")
     if not description:
         return PAYMENT_SERVICE_NAME

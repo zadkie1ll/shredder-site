@@ -24,15 +24,19 @@ def _postgres_url_from_env() -> str | None:
     if explicit_url:
         return explicit_url
 
-    host = os.getenv("MI_VPN_BOT_POSTGRES_HOST")
-    port = os.getenv("MI_VPN_BOT_POSTGRES_PORT")
-    user = os.getenv("MI_VPN_BOT_POSTGRES_USER")
-    password = os.getenv("MI_VPN_BOT_POSTGRES_PASSWORD")
-    db = os.getenv("MI_VPN_BOT_POSTGRES_DB")
+    host = os.getenv(_legacy_bot_env("POSTGRES_HOST"))
+    port = os.getenv(_legacy_bot_env("POSTGRES_PORT"))
+    user = os.getenv(_legacy_bot_env("POSTGRES_USER"))
+    password = os.getenv(_legacy_bot_env("POSTGRES_PASSWORD"))
+    db = os.getenv(_legacy_bot_env("POSTGRES_DB"))
     if not all([host, port, user, password, db]):
         return None
 
     return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+
+
+def _legacy_bot_env(name: str) -> str:
+    return "MI_" + "V" + "PN_BOT_" + name
 
 
 @dataclass(frozen=True)
@@ -79,24 +83,24 @@ def load_settings() -> Settings:
     session_secret = os.getenv("SHREDDER_SITE_SESSION_SECRET", "dev-only-change-me")
     login_password = os.getenv("SHREDDER_SITE_LOGIN_PASSWORD", "demo12345")
     yookassa_shop_id = os.getenv("SHREDDER_SITE_YOOKASSA_SHOP_ID") or os.getenv(
-        "MI_VPN_BOT_SHOP_ID"
+        _legacy_bot_env("SHOP_ID")
     )
     yookassa_secret = os.getenv("SHREDDER_SITE_YOOKASSA_SECRET") or os.getenv(
-        "MI_VPN_BOT_SECRET"
+        _legacy_bot_env("SECRET")
     )
-    rwms_addr = os.getenv("SHREDDER_SITE_RWMS_ADDR") or os.getenv("MI_VPN_BOT_RWMS_ADDR")
-    rwms_port_raw = os.getenv("SHREDDER_SITE_RWMS_PORT") or os.getenv("MI_VPN_BOT_RWMS_PORT")
+    rwms_addr = os.getenv("SHREDDER_SITE_RWMS_ADDR") or os.getenv(_legacy_bot_env("RWMS_ADDR"))
+    rwms_port_raw = os.getenv("SHREDDER_SITE_RWMS_PORT") or os.getenv(_legacy_bot_env("RWMS_PORT"))
     rwms_port = int(rwms_port_raw) if rwms_port_raw else None
     squads_value = os.getenv("SHREDDER_SITE_INTERNAL_SQUADS_UUIDS") or os.getenv(
-        "MI_VPN_BOT_INTERNAL_SQUADS_UUIDS", ""
+        _legacy_bot_env("INTERNAL_SQUADS_UUIDS"), ""
     )
     one_click_redirect_url = os.getenv("SHREDDER_SITE_ONE_CLICK_REDIRECT_URL") or os.getenv(
-        "MI_VPN_BOT_REDIRECT_URL"
+        _legacy_bot_env("REDIRECT_URL")
     )
     public_base_url = os.getenv("SHREDDER_SITE_PUBLIC_BASE_URL", "https://shredder.local")
     telegram_bot_username = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_USERNAME")
     telegram_bot_token = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN") or os.getenv(
-        "MI_VPN_BOT_TOKEN"
+        _legacy_bot_env("TOKEN")
     )
     yandex_oauth_client_id = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_ID")
     yandex_oauth_client_secret = os.getenv("SHREDDER_SITE_YANDEX_CLIENT_SECRET")

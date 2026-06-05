@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% set title = "Shredder VPN" %}
+{% set title = "Shredder" %}
 {% set body_class = "shredder-page" %}
 
 {% block content %}
 <section class="sh-hero" id="top">
-  <img class="sh-hero__logo" src="{{ url_for('static', path='/figma-assets/hero-logo.png') }}" alt="Шреддер VPN сервис">
+  <img class="sh-hero__logo" src="{{ url_for('static', path='/figma-assets/hero-logo.png') }}" alt="Шреддер">
   <div class="sh-hero__content">
     <h1>Shredder</h1>
     <p class="sh-hero__tagline">- когда нужно, чтобы интернет просто работал.</p>
@@ -58,7 +58,7 @@
   <div class="sh-tape sh-tape--one">
     <div class="sh-tape__track">
       {% for _ in range(2) %}
-        <div class="sh-tape__group"><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span><span>SHREDDER VPS</span></div>
+        <div class="sh-tape__group"><span>SHREDDER</span><span>SHREDDER</span><span>SHREDDER</span><span>SHREDDER</span><span>SHREDDER</span><span>SHREDDER</span></div>
       {% endfor %}
     </div>
   </div>
@@ -128,7 +128,7 @@
       <div class="sh-plan-grid" data-mobile-carousel="tariffs">
         {% for tariff in (tariffs[:2] + tariffs[-1:]) %}
           <article class="sh-plan {% if tariff.highlight %}is-featured{% endif %}">
-            <img class="sh-plan__logo" src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="Шреддер VPS сервис">
+            <img class="sh-plan__logo" src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="Шреддер">
             <h3>{{ tariff.name }}</h3>
             <strong>- {{ tariff.price }} ₽</strong>
             <ul>
