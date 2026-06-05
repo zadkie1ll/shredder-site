@@ -20,7 +20,15 @@
 
     <label class="sh-login-field">
       <span>Почта</span>
-      <input type="email" name="username" autocomplete="email" placeholder="mail@example.com" required>
+      <input
+        type="email"
+        name="username"
+        autocomplete="email"
+        placeholder="mail@example.com"
+        pattern="[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+"
+        data-email-input
+        required
+      >
     </label>
 
     <label class="sh-login-field">
@@ -82,6 +90,24 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+  (function () {
+    var emailInput = document.querySelector("[data-email-input]");
+
+    if (!emailInput) {
+      return;
+    }
+
+    emailInput.addEventListener("input", function () {
+      emailInput.value = emailInput.value.replace(/\s+/g, "").replace(/[^a-zA-Z0-9.!#$%&'*+/=?^_`{|}~@-]/g, "").toLowerCase();
+      emailInput.setCustomValidity("");
+    });
+
+    emailInput.addEventListener("invalid", function () {
+      emailInput.setCustomValidity("Укажи корректную почту, например mail@example.com");
+    });
+  })();
+</script>
 {% if yandex_oauth_enabled %}
 <script src="https://yastatic.net/s3/passport-sdk/autofill/v1/sdk-suggest-with-polyfills-latest.js"></script>
 <script>

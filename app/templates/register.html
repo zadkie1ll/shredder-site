@@ -21,7 +21,17 @@
 
     <label class="sh-login-field">
       <span>Код из письма</span>
-      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6" required>
+      <input
+        type="text"
+        name="code"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        placeholder="000000"
+        maxlength="6"
+        pattern="[0-9]{6}"
+        data-auto-submit-code
+        required
+      >
     </label>
 
     <button class="sh-button sh-button--green sh-login-submit" type="submit">ПОДТВЕРДИТЬ</button>
@@ -43,7 +53,16 @@
 
     <label class="sh-login-field">
       <span>Почта</span>
-      <input type="email" name="email" autocomplete="email" placeholder="mail@example.com" value="{{ email }}" required>
+      <input
+        type="email"
+        name="email"
+        autocomplete="email"
+        placeholder="mail@example.com"
+        value="{{ email }}"
+        pattern="[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+"
+        data-email-input
+        required
+      >
     </label>
 
     <label class="sh-login-field">
@@ -65,4 +84,42 @@
   </form>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var emailInput = document.querySelector("[data-email-input]");
+    var codeInput = document.querySelector("[data-auto-submit-code]");
+
+    function normalizeEmailInput(input) {
+      input.value = input.value.replace(/\s+/g, "").replace(/[^a-zA-Z0-9.!#$%&'*+/=?^_`{|}~@-]/g, "").toLowerCase();
+    }
+
+    if (emailInput) {
+      emailInput.addEventListener("input", function () {
+        normalizeEmailInput(emailInput);
+        emailInput.setCustomValidity("");
+      });
+
+      emailInput.addEventListener("invalid", function () {
+        emailInput.setCustomValidity("Укажи корректную почту, например mail@example.com");
+      });
+    }
+
+    if (codeInput) {
+      var submitting = false;
+      codeInput.addEventListener("input", function () {
+        codeInput.value = codeInput.value.replace(/\D/g, "").slice(0, 6);
+        if (codeInput.value.length === 6 && !submitting) {
+          var form = codeInput.form;
+          if (form && form.checkValidity()) {
+            submitting = true;
+            form.requestSubmit();
+          }
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}
