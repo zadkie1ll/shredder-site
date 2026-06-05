@@ -14,6 +14,9 @@
     <p class="sh-login-card__eyebrow">Подтверждение почты</p>
     <h1 id="register-title">Код</h1>
     <p class="sh-login-card__lead">Мы отправили код на {{ pending_registration.email }}. Введи его, чтобы создать доступ.</p>
+    <div class="sh-login-note">
+      Если письма нет во входящих, проверь папку Спам и отметь письмо как "не спам".
+    </div>
 
     {% if error %}
       <div class="sh-login-alert">{{ error }}</div>
