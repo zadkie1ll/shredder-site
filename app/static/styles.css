@@ -1889,6 +1889,98 @@ th {
   width: 18vw;
 }
 
+.sh-cabinet-top__actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 18px;
+}
+
+.sh-pwa-button {
+  background: rgba(167, 251, 37, 0.14);
+  border: 1px solid rgba(167, 251, 37, 0.6);
+  color: var(--sh-green);
+  white-space: nowrap;
+}
+
+.sh-pwa-button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.sh-pwa-dialog[hidden] {
+  display: none;
+}
+
+.sh-pwa-dialog {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.68);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 30;
+}
+
+.sh-pwa-dialog__card {
+  background:
+    linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(5, 5, 5, 0.98)),
+    url("/static/figma-assets/city-depth.png");
+  background-position: center top;
+  background-size: cover;
+  border: 1px solid rgba(167, 251, 37, 0.52);
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), 0 0 28px rgba(167, 251, 37, 0.12);
+  display: grid;
+  gap: 14px;
+  max-width: 420px;
+  padding: 24px;
+  position: relative;
+  width: min(100%, 420px);
+}
+
+.sh-pwa-dialog__card span {
+  color: rgba(255, 255, 255, 0.6);
+  font-family: Montserrat, Rubik, sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sh-pwa-dialog__card strong {
+  color: var(--sh-green);
+  display: block;
+  font-size: 28px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.sh-pwa-dialog__card p {
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.42;
+  margin: 0;
+}
+
+.sh-pwa-dialog__close {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 24px;
+  height: 38px;
+  justify-content: center;
+  line-height: 1;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  width: 38px;
+}
+
 .sh-cabinet-panels {
   margin: 0 auto;
   max-width: 1220px;
@@ -3390,8 +3482,24 @@ th {
     padding: 26px 40px 42px;
   }
 
+  .sh-cabinet-top {
+    align-items: flex-start;
+    display: grid;
+    gap: 14px;
+  }
+
+  .sh-cabinet-top__actions {
+    justify-self: start;
+  }
+
   .sh-cabinet-top img {
     display: none;
+  }
+
+  .sh-pwa-button {
+    font-size: 11px;
+    min-height: 40px;
+    padding: 0 14px;
   }
 
   .sh-cabinet-panel {

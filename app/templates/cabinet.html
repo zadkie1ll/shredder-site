@@ -46,8 +46,23 @@
         <p>Shredder VPN</p>
         <h1 data-cabinet-title>Обзор</h1>
       </div>
-      <img src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
+      <div class="sh-cabinet-top__actions">
+        <button class="sh-mini-button sh-pwa-button" type="button" data-pwa-install>
+          На рабочий экран
+        </button>
+        <img src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
+      </div>
     </header>
+
+    <div class="sh-pwa-dialog" data-pwa-dialog hidden>
+      <div class="sh-pwa-dialog__card" role="dialog" aria-modal="true" aria-labelledby="pwa-dialog-title">
+        <button class="sh-pwa-dialog__close" type="button" data-pwa-close aria-label="Закрыть">&times;</button>
+        <span data-pwa-kicker>Приложение</span>
+        <strong id="pwa-dialog-title" data-pwa-title>Добавить Shredder</strong>
+        <p data-pwa-message>Добавь кабинет на рабочий экран, чтобы открывать его как отдельное приложение.</p>
+        <button class="sh-mini-button" type="button" data-pwa-action>Установить</button>
+      </div>
+    </div>
 
     <div class="sh-cabinet-panels">
       <section class="sh-cabinet-panel is-active" id="overview" data-cabinet-panel="overview" aria-labelledby="overview-title">
@@ -367,6 +382,13 @@
     const menuBackdrop = cabinetRoot.querySelector("[data-cabinet-menu-backdrop]");
     const installRoot = cabinetRoot.querySelector("[data-install-root]");
     const autopayCard = cabinetRoot.querySelector("[data-autopay-card]");
+    const pwaButton = cabinetRoot.querySelector("[data-pwa-install]");
+    const pwaDialog = cabinetRoot.querySelector("[data-pwa-dialog]");
+    const pwaClose = cabinetRoot.querySelector("[data-pwa-close]");
+    const pwaAction = cabinetRoot.querySelector("[data-pwa-action]");
+    const pwaTitle = cabinetRoot.querySelector("[data-pwa-title]");
+    const pwaMessage = cabinetRoot.querySelector("[data-pwa-message]");
+    let deferredInstallPrompt = null;
     const names = {
       overview: "Обзор",
       subscription: "Подписка",
@@ -540,6 +562,140 @@
         autopayCard.classList.remove("is-confirming");
       });
     }
+
+    function isStandaloneApp() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    function isIosDevice() {
+      const ua = navigator.userAgent || "";
+      const platform = navigator.platform || "";
+      return /iPhone|iPad|iPod/i.test(ua) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    }
+
+    function isAndroidDevice() {
+      return /Android/i.test(navigator.userAgent || "");
+    }
+
+    function isTelegramWebView() {
+      const ua = navigator.userAgent || "";
+      return /Telegram/i.test(ua) || Boolean(window.TelegramWebviewProxy || window.TelegramWebviewProxyProto);
+    }
+
+    function setPwaDialog(title, message, actionText = "Понятно", actionMode = "close") {
+      if (!pwaDialog || !pwaTitle || !pwaMessage || !pwaAction) return;
+      pwaTitle.textContent = title;
+      pwaMessage.textContent = message;
+      pwaAction.textContent = actionText;
+      pwaAction.dataset.pwaActionMode = actionMode;
+      pwaDialog.hidden = false;
+    }
+
+    function closePwaDialog() {
+      if (pwaDialog) {
+        pwaDialog.hidden = true;
+      }
+    }
+
+    function showPwaInstallHelp() {
+      if (isStandaloneApp()) {
+        setPwaDialog(
+          "Shredder уже установлен",
+          "Кабинет уже открыт как приложение или был добавлен на рабочий экран.",
+        );
+        return;
+      }
+
+      if (deferredInstallPrompt) {
+        setPwaDialog(
+          "Установить Shredder",
+          "Браузер готов добавить кабинет на рабочий экран. Нажми кнопку ниже и подтверди установку.",
+          "Установить",
+          "prompt",
+        );
+        return;
+      }
+
+      if (isTelegramWebView()) {
+        setPwaDialog(
+          "Открой в браузере",
+          "Встроенный браузер Telegram обычно не устанавливает веб-приложения. Открой меню и выбери открытие в Safari или Chrome, затем добавь Shredder на экран.",
+        );
+        return;
+      }
+
+      if (isIosDevice()) {
+        setPwaDialog(
+          "Добавить на iPhone",
+          "Открой сайт в Safari, нажми Поделиться, затем выбери На экран Домой.",
+        );
+        return;
+      }
+
+      if (isAndroidDevice()) {
+        setPwaDialog(
+          "Добавить на Android",
+          "Если системная кнопка установки не появилась, открой меню браузера и выбери Установить приложение или Добавить на главный экран.",
+        );
+        return;
+      }
+
+      setPwaDialog(
+        "Добавить на компьютер",
+        "В Chrome или Edge нажми значок установки в адресной строке либо открой меню браузера и выбери Установить Shredder.",
+      );
+    }
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      if (pwaButton && !isStandaloneApp()) {
+        pwaButton.textContent = "Установить приложение";
+      }
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      closePwaDialog();
+      if (pwaButton) {
+        pwaButton.textContent = "Установлено";
+        pwaButton.disabled = true;
+      }
+    });
+
+    if (pwaButton) {
+      if (isStandaloneApp()) {
+        pwaButton.textContent = "Установлено";
+        pwaButton.disabled = true;
+      }
+
+      pwaButton.addEventListener("click", showPwaInstallHelp);
+    }
+
+    pwaClose?.addEventListener("click", closePwaDialog);
+    pwaDialog?.addEventListener("click", (event) => {
+      if (event.target === pwaDialog) {
+        closePwaDialog();
+      }
+    });
+    pwaAction?.addEventListener("click", async () => {
+      if (pwaAction.dataset.pwaActionMode !== "prompt" || !deferredInstallPrompt) {
+        closePwaDialog();
+        return;
+      }
+
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEvent.prompt();
+      await promptEvent.userChoice.catch(() => null);
+      closePwaDialog();
+    });
 
     window.addEventListener("hashchange", () => {
       activateCabinetSection(window.location.hash.replace("#", ""));
