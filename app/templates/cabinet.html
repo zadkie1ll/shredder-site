@@ -48,7 +48,7 @@
       </div>
       <div class="sh-cabinet-top__actions">
         <button class="sh-mini-button sh-pwa-button" type="button" data-pwa-install>
-          На рабочий экран
+          Быстрый доступ
         </button>
         <img src="{{ url_for('static', path='/figma-assets/knight-laptop-small.png') }}" alt="">
       </div>
@@ -100,7 +100,10 @@
         <div class="sh-cabinet-split">
           <article class="sh-access-preview">
             <span>Ключ подключения</span>
-            <code>{{ one_click_links.happ_key if one_click_links else "Будет доступен после подключения RWMS" }}</code>
+            <code
+              {% if one_click_links %}data-copy-text="{{ one_click_links.happ_key }}"{% endif %}
+              {% if one_click_links %}title="Нажмите, чтобы скопировать"{% endif %}
+            >{{ one_click_links.happ_key if one_click_links else "Будет доступен после подключения RWMS" }}</code>
           </article>
           <article class="sh-access-preview sh-access-preview--visual">
             <img src="{{ url_for('static', path='/figma-assets/tariff-logo.png') }}" alt="">
@@ -389,6 +392,7 @@
     const pwaTitle = cabinetRoot.querySelector("[data-pwa-title]");
     const pwaMessage = cabinetRoot.querySelector("[data-pwa-message]");
     let deferredInstallPrompt = null;
+    const pwaInstalledStorageKey = "shredder:pwa-installed";
     const names = {
       overview: "Обзор",
       subscription: "Подписка",
@@ -567,6 +571,27 @@
       return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     }
 
+    function hasTrackedPwaInstall() {
+      try {
+        return localStorage.getItem(pwaInstalledStorageKey) === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function trackPwaInstall() {
+      try {
+        localStorage.setItem(pwaInstalledStorageKey, "1");
+      } catch {
+      }
+    }
+
+    function hidePwaButton() {
+      if (pwaButton) {
+        pwaButton.hidden = true;
+      }
+    }
+
     function isIosDevice() {
       const ua = navigator.userAgent || "";
       const platform = navigator.platform || "";
@@ -655,24 +680,19 @@
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       deferredInstallPrompt = event;
-      if (pwaButton && !isStandaloneApp()) {
-        pwaButton.textContent = "Установить приложение";
-      }
     });
 
     window.addEventListener("appinstalled", () => {
       deferredInstallPrompt = null;
+      trackPwaInstall();
       closePwaDialog();
-      if (pwaButton) {
-        pwaButton.textContent = "Установлено";
-        pwaButton.disabled = true;
-      }
+      hidePwaButton();
     });
 
     if (pwaButton) {
-      if (isStandaloneApp()) {
-        pwaButton.textContent = "Установлено";
-        pwaButton.disabled = true;
+      if (isStandaloneApp() || hasTrackedPwaInstall()) {
+        trackPwaInstall();
+        hidePwaButton();
       }
 
       pwaButton.addEventListener("click", showPwaInstallHelp);
@@ -693,7 +713,11 @@
       const promptEvent = deferredInstallPrompt;
       deferredInstallPrompt = null;
       promptEvent.prompt();
-      await promptEvent.userChoice.catch(() => null);
+      const choice = await promptEvent.userChoice.catch(() => null);
+      if (choice?.outcome === "accepted") {
+        trackPwaInstall();
+        hidePwaButton();
+      }
       closePwaDialog();
     });
 
