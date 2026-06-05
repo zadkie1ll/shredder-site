@@ -27,6 +27,7 @@ from common.models.db import (
     Base,
     ReferralBonus,
     ReferralBonusType,
+    ReferralType,
     User,
     YkPayment,
     YkRecurrentPayment,
@@ -337,6 +338,31 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
 
         self.assertEqual(email_identity.user_id, user.id)
 
+    def test_email_registration_can_store_referrer(self):
+        now = utcnow_naive().replace(microsecond=0)
+        self.add_user(100, "referrer", 1000, now + timedelta(days=30))
+
+        registration = create_pending_registration(
+            None,
+            "user@example.com",
+            "secret123",
+        )
+        pending = verify_pending_registration_code(
+            registration.token,
+            registration.code,
+        )
+        user = consume_pending_registration(
+            pending,
+            now + timedelta(days=7),
+            referrer_id=100,
+        )
+
+        with self.sessionmaker() as session:
+            db_user = session.get(User, user.id)
+
+        self.assertEqual(db_user.referred_by_id, 100)
+        self.assertEqual(db_user.referral_type, ReferralType.STANDARD)
+
     def test_creates_yandex_oauth_only_user(self):
         now = utcnow_naive().replace(microsecond=0)
 
@@ -360,6 +386,42 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
         self.assertEqual(oauth_identity.email, "user@example.com")
         self.assertIsNone(credential)
         self.assertEqual(trial_grant.days_added, 7)
+
+    def test_oauth_user_can_store_referrer(self):
+        now = utcnow_naive().replace(microsecond=0)
+        self.add_user(100, "referrer", 1000, now + timedelta(days=30))
+
+        user = create_oauth_user(
+            "google",
+            "google-123",
+            "User@Example.COM",
+            "site_google",
+            now + timedelta(days=7),
+            referrer_id=100,
+        )
+
+        with self.sessionmaker() as session:
+            db_user = session.get(User, user.id)
+
+        self.assertEqual(db_user.referred_by_id, 100)
+        self.assertEqual(db_user.referral_type, ReferralType.STANDARD)
+
+    def test_telegram_user_can_store_referrer(self):
+        now = utcnow_naive().replace(microsecond=0)
+        self.add_user(100, "referrer", 1000, now + timedelta(days=30))
+
+        user = create_telegram_user(
+            111,
+            now + timedelta(days=7),
+            "shredder_user",
+            referrer_id=100,
+        )
+
+        with self.sessionmaker() as session:
+            db_user = session.get(User, user.id)
+
+        self.assertEqual(db_user.referred_by_id, 100)
+        self.assertEqual(db_user.referral_type, ReferralType.STANDARD)
 
     def test_yandex_oauth_links_existing_email_user(self):
         now = utcnow_naive().replace(microsecond=0)

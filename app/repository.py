@@ -397,6 +397,7 @@ def create_user_with_password_hash(
     email: str | None,
     expire_at: datetime | None,
     password_hash: str,
+    referrer_id: int | None = None,
 ) -> SiteUser:
     username = normalize_login(username or generate_site_username())
     email = normalize_email(email) if email else None
@@ -417,6 +418,8 @@ def create_user_with_password_hash(
         return user
 
     _, User, _, _ = _common_models()
+    from common.models.db import ReferralType
+
     with _SessionLocal() as session:
         if _find_login_owner(session, User, username) is not None:
             raise ValueError("username already exists")
@@ -427,6 +430,8 @@ def create_user_with_password_hash(
             username=username,
             telegram_id=_synthetic_telegram_id(username),
             expire_at=expire_at.replace(tzinfo=None) if expire_at and expire_at.tzinfo else expire_at,
+            referred_by_id=referrer_id,
+            referral_type=ReferralType.STANDARD if referrer_id is not None else None,
         )
         next_user_id = _sqlite_next_user_id(session, User)
         if next_user_id is not None:
@@ -467,6 +472,7 @@ def create_telegram_user(
     telegram_id: int,
     expire_at: datetime | None,
     telegram_username: str | None = None,
+    referrer_id: int | None = None,
 ) -> SiteUser:
     if telegram_id <= 0:
         raise ValueError("telegram_id must be positive")
@@ -485,6 +491,8 @@ def create_telegram_user(
         return user
 
     _, User, _, _ = _common_models()
+    from common.models.db import ReferralType
+
     with _SessionLocal() as session:
         existing_user = session.execute(
             select(User).where(User.telegram_id == telegram_id)
@@ -506,6 +514,8 @@ def create_telegram_user(
                 if expire_at and expire_at.tzinfo
                 else expire_at
             ),
+            "referred_by_id": referrer_id,
+            "referral_type": ReferralType.STANDARD if referrer_id is not None else None,
         }
         if hasattr(User, "telegram_username"):
             values["telegram_username"] = telegram_username
@@ -610,6 +620,7 @@ def create_oauth_user(
     email: str,
     username: str,
     expire_at: datetime | None,
+    referrer_id: int | None = None,
 ) -> SiteUser:
     provider = normalize_login(provider)
     provider_user_id = provider_user_id.strip()
@@ -639,6 +650,8 @@ def create_oauth_user(
         return user
 
     _, User, _, _ = _common_models()
+    from common.models.db import ReferralType
+
     with _SessionLocal() as session:
         if session.get(SiteOAuthIdentity, identity_key) is not None:
             raise ValueError("oauth identity already exists")
@@ -655,6 +668,8 @@ def create_oauth_user(
                 if expire_at and expire_at.tzinfo
                 else expire_at
             ),
+            referred_by_id=referrer_id,
+            referral_type=ReferralType.STANDARD if referrer_id is not None else None,
         )
         next_user_id = _sqlite_next_user_id(session, User)
         if next_user_id is not None:
@@ -827,12 +842,14 @@ def verify_pending_registration_code(token: str, code: str) -> PendingRegistrati
 def consume_pending_registration(
     pending: PendingRegistrationData,
     expire_at: datetime | None,
+    referrer_id: int | None = None,
 ) -> SiteUser:
     user = create_user_with_password_hash(
         username=pending.username,
         email=pending.email,
         expire_at=expire_at,
         password_hash=pending.password_hash,
+        referrer_id=referrer_id,
     )
 
     if not database_enabled():

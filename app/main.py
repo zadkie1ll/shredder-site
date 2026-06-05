@@ -128,6 +128,23 @@ def require_user(request: Request):
     return user
 
 
+def pending_referrer_id(request: Request, *, new_username: str | None = None) -> int | None:
+    referrer_username = request.session.get("referrer_username")
+    if not referrer_username:
+        return None
+
+    referrer = get_user_by_username(referrer_username)
+    if referrer is None:
+        request.session.pop("referrer_username", None)
+        return None
+
+    if new_username and referrer.username == new_username:
+        request.session.pop("referrer_username", None)
+        return None
+
+    return referrer.id
+
+
 def login_context(request: Request, error: str | None = None) -> dict:
     return {
         "request": request,
@@ -171,6 +188,15 @@ def index(request: Request):
             "tariffs": get_tariffs(),
         },
     )
+
+
+@app.get("/ref/{referrer_username}")
+def referral_landing(request: Request, referrer_username: str):
+    referrer = get_user_by_username(referrer_username.strip().lower())
+    user = current_user(request)
+    if referrer is not None and (user is None or user.id != referrer.id):
+        request.session["referrer_username"] = referrer.username
+    return RedirectResponse("/register", status_code=303)
 
 
 @app.get("/login")
@@ -298,7 +324,12 @@ async def confirm_registration(request: Request, code: str = Form("")):
         )
 
     try:
-        user = consume_pending_registration(pending, remnawave_user.expire_at)
+        referrer_id = pending_referrer_id(request, new_username=pending.username)
+        user = consume_pending_registration(
+            pending,
+            remnawave_user.expire_at,
+            referrer_id=referrer_id,
+        )
     except ValueError:
         return templates.TemplateResponse(
             "register.html",
@@ -307,6 +338,7 @@ async def confirm_registration(request: Request, code: str = Form("")):
         )
 
     request.session.pop("pending_registration_token", None)
+    request.session.pop("referrer_username", None)
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return RedirectResponse("/cabinet", status_code=303)
@@ -376,6 +408,7 @@ async def telegram_login_callback(request: Request):
                 telegram_id,
                 remnawave_user.expire_at,
                 payload.get("username"),
+                referrer_id=pending_referrer_id(request, new_username=username),
             )
         except Exception:
             request.session["login_error"] = (
@@ -385,6 +418,7 @@ async def telegram_login_callback(request: Request):
 
     request.session["user_id"] = user.id
     request.session["username"] = user.username
+    request.session.pop("referrer_username", None)
     return RedirectResponse("/cabinet", status_code=303)
 
 
@@ -415,10 +449,12 @@ async def _login_oauth_user(
                 email,
                 username,
                 remnawave_user.expire_at,
+                referrer_id=pending_referrer_id(request, new_username=username),
             )
 
     request.session["user_id"] = user.id
     request.session["username"] = user.username
+    request.session.pop("referrer_username", None)
     return user
 
 
