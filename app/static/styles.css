@@ -723,6 +723,7 @@ th {
 }
 
 .sh-hero__content {
+  --sh-hero-cta-offset: clamp(132px, 10vw, 176px);
   margin-left: auto;
   max-width: 680px;
   padding-top: clamp(330px, 19.6vw, 376px);
@@ -782,8 +783,10 @@ th {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
+  margin-left: var(--sh-hero-cta-offset);
   margin-top: -70px;
   margin-bottom: 18px;
+  width: max-content;
 }
 
 .sh-button {
@@ -841,8 +844,9 @@ th {
 
 .sh-hero__trial {
   font-size: 22px;
-  max-width: 390px;
-  text-align: right;
+  margin-left: var(--sh-hero-cta-offset, 0);
+  max-width: 620px;
+  text-align: left;
 }
 
 .sh-benefits-wrap,
@@ -3014,6 +3018,7 @@ th {
     display: grid;
     gap: 5px;
     grid-template-columns: minmax(0, 0.585fr) minmax(0, 1fr);
+    margin-left: 0;
     margin-top: -28px;
     margin-bottom: 14px;
     max-width: 100%;
