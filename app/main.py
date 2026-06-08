@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
@@ -70,6 +71,7 @@ STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 app = FastAPI(title="Shredder Site")
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.session_secret,
