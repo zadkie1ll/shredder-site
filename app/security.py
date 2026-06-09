@@ -48,7 +48,8 @@ def verify_telegram_login(
         auth_timestamp = int(auth_date)
     except ValueError:
         return False
-    if time.time() - auth_timestamp > max_age_seconds:
+    age_seconds = time.time() - auth_timestamp
+    if age_seconds < -30 or age_seconds > max_age_seconds:
         return False
 
     data_check_string = "\n".join(

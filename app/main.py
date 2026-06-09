@@ -1,4 +1,5 @@
 import hmac
+import logging
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -620,12 +621,24 @@ async def create_payment(request: Request, tariff_id: str = Form(...)):
     if isinstance(user, RedirectResponse):
         return user
 
-    tariff = get_tariff_by_id(tariff_id)
-    payment_url = await create_payment_url(
-        tariff=tariff,
-        username=user.username,
-        telegram_id=user.telegram_id,
-    )
+    try:
+        tariff = get_tariff_by_id(tariff_id)
+        payment_url = await create_payment_url(
+            tariff=tariff,
+            username=user.username,
+            telegram_id=user.telegram_id,
+        )
+    except ValueError:
+        request.session["payment_status"] = "invalid_tariff"
+        return RedirectResponse("/cabinet#subscription", status_code=303)
+    except Exception:
+        logging.exception(
+            "Failed to create YooKassa payment for user %s and tariff %s",
+            user.username,
+            tariff_id,
+        )
+        request.session["payment_status"] = "payment_unavailable"
+        return RedirectResponse("/cabinet#subscription", status_code=303)
     return RedirectResponse(payment_url, status_code=303)
 
 
@@ -720,6 +733,7 @@ async def render_cabinet(request: Request):
     bonus_days = sum(referral.bonus_days for referral in referrals)
     telegram_link_status = request.session.pop("telegram_link_status", None)
     autopay_status = request.session.pop("autopay_status", None)
+    payment_status = request.session.pop("payment_status", None)
     subscription_url = remnawave_user.subscription_url if remnawave_user else None
     autopay_info = get_autopay_info(user)
 
@@ -742,6 +756,7 @@ async def render_cabinet(request: Request):
             "telegram_link_status": telegram_link_status,
             "autopay_info": autopay_info,
             "autopay_status": autopay_status,
+            "payment_status": payment_status,
         },
     )
 

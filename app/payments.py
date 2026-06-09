@@ -19,6 +19,12 @@ LEGACY_ACCESS_WORD_PATTERN = re.compile(
 )
 
 
+def _linked_telegram_id(telegram_id: int | None) -> int | None:
+    if telegram_id is None or telegram_id <= 0:
+        return None
+    return telegram_id
+
+
 def _build_payment_description(tariff) -> str:
     description = PAYMENT_SERVICE_NAME_PATTERN.sub("", tariff.description)
     description = LEGACY_ACCESS_WORD_PATTERN.sub("", description)
@@ -43,6 +49,7 @@ def _create_payment_sync(tariff, username: str, telegram_id: int | None) -> str:
         "trial_promotion": False,
         "from_trial": False,
     }
+    telegram_id = _linked_telegram_id(telegram_id)
     if telegram_id is not None:
         metadata["telegram_id"] = telegram_id
 

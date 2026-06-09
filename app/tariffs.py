@@ -1,6 +1,9 @@
 from datetime import timedelta
 
 
+SITE_TARIFF_IDS = frozenset({"month", "sixmonths", "year"})
+
+
 def _period_to_text(period: timedelta) -> str:
     days = period.days
     if days == 1:
@@ -30,9 +33,7 @@ def get_tariffs() -> list[dict]:
 
     tariffs = []
     for tariff in ALL_TARIFFS:
-        if tariff.subscription_period.days < 30:
-            continue
-        if tariff.subscription_period.days == 90:
+        if tariff.db_tariff_id not in SITE_TARIFF_IDS:
             continue
         name = tariff_to_human_str(tariff) or _period_to_text(tariff.subscription_period)
         tariffs.append(
@@ -48,6 +49,9 @@ def get_tariffs() -> list[dict]:
 
 
 def get_tariff_by_id(db_tariff_id: str):
+    if db_tariff_id not in SITE_TARIFF_IDS:
+        raise ValueError(f"Unknown site tariff id: {db_tariff_id}")
+
     try:
         from common.models.tariff import str_to_tariff
     except ImportError as exc:

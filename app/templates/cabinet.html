@@ -138,6 +138,16 @@
           {% endfor %}
         </div>
 
+        {% if payment_status %}
+          <div class="sh-login-alert">
+            {% if payment_status == "invalid_tariff" %}
+              Такой тариф недоступен. Выбери один из тарифов на странице.
+            {% else %}
+              Не удалось открыть оплату. Попробуй ещё раз позже.
+            {% endif %}
+          </div>
+        {% endif %}
+
         {% if autopay_status %}
           <div class="sh-login-alert">
             {% if autopay_status == "canceled" %}
@@ -196,7 +206,7 @@
             <span>Android</span>
             <strong>Для подключения</strong>
             <ol>
-              <li>Скачайте <a href="https://play.google.com/store/apps/details?id=com.happproxy&hl=ru" target="_blank" rel="noopener">Happ</a> или <a href="https://github.com/FlyFrg/Happ_android_update/releases/latest/download/Happ.apk" target="_blank" rel="noopener">APK-файл</a>.</li>
+              <li>Скачайте <a href="https://play.google.com/store/apps/details?id=com.happproxy&hl=ru" target="_blank" rel="noopener">Happ</a> или <a href="https://github.com/Happ-proxy/happ-android/releases/latest/download/Happ.apk" target="_blank" rel="noopener">APK-файл</a>.</li>
               <li>Нажмите на кнопку ниже, чтобы подключиться в 1 клик.</li>
             </ol>
             {% if one_click_links %}
