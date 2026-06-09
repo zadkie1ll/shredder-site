@@ -14,13 +14,6 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.email_delivery import send_registration_code
-from app.google_oauth import (
-    GoogleOAuthError,
-    build_google_authorize_url,
-    exchange_google_code,
-    fetch_google_user,
-    google_oauth_enabled,
-)
 from app.one_click import build_one_click_links
 from app.payments import create_payment_url
 from app.remnawave import (
@@ -49,6 +42,7 @@ from app.repository import (
     link_oauth_identity,
     link_telegram_account,
     normalize_email,
+    registration_email_is_valid,
     user_has_site_password,
     verify_pending_registration_code,
 )
@@ -156,7 +150,6 @@ def oauth_context() -> dict:
         "yandex_client_id": settings.yandex_oauth_client_id,
         "yandex_origin": yandex_origin(),
         "yandex_token_uri": yandex_suggest_token_uri(),
-        "google_oauth_enabled": google_oauth_enabled(),
     }
 
 
@@ -237,12 +230,12 @@ async def register(
     password_repeat: str = Form(...),
 ):
     normalized_email = normalize_email(email)
-    if not normalized_email or "@" not in normalized_email:
+    if not registration_email_is_valid(normalized_email):
         return templates.TemplateResponse(
             "register.html",
             register_context(
                 request,
-                "Укажи корректную почту",
+                "Укажи корректную почту с доменом .ru",
                 email=normalized_email,
             ),
             status_code=400,
@@ -449,6 +442,8 @@ async def _login_oauth_user(
                 email,
             )
         else:
+            if not registration_email_is_valid(email):
+                raise ValueError("new account email must use a .ru domain")
             username = generate_site_username()
             remnawave_user = await create_remnawave_user(username)
             if remnawave_user is None:
@@ -564,56 +559,6 @@ async def yandex_widget_login(request: Request, access_token: str = Form("")):
             status_code=400,
         )
     return JSONResponse({"ok": True, "redirect": "/cabinet"})
-
-
-@app.get("/auth/google/start")
-def google_login_start(request: Request):
-    if not google_oauth_enabled():
-        request.session["login_error"] = "Вход через Google пока не настроен."
-        return RedirectResponse("/login", status_code=303)
-
-    state = secrets.token_urlsafe(32)
-    request.session["google_oauth_state"] = state
-    try:
-        authorize_url = build_google_authorize_url(state)
-    except GoogleOAuthError:
-        request.session["login_error"] = "Вход через Google пока не настроен."
-        return RedirectResponse("/login", status_code=303)
-    return RedirectResponse(authorize_url, status_code=303)
-
-
-@app.get("/auth/google/callback")
-async def google_login_callback(request: Request):
-    expected_state = request.session.pop("google_oauth_state", None)
-    returned_state = request.query_params.get("state")
-    if not expected_state or returned_state != expected_state:
-        request.session["login_error"] = "Не удалось проверить вход через Google."
-        return RedirectResponse("/login", status_code=303)
-
-    if request.query_params.get("error"):
-        request.session["login_error"] = "Google не подтвердил вход."
-        return RedirectResponse("/login", status_code=303)
-
-    code = request.query_params.get("code", "").strip()
-    if not code:
-        request.session["login_error"] = "Google не передал код входа."
-        return RedirectResponse("/login", status_code=303)
-
-    try:
-        access_token = await run_in_threadpool(exchange_google_code, code)
-        google_user = await run_in_threadpool(fetch_google_user, access_token)
-        await _login_oauth_user(
-            request,
-            "google",
-            google_user.provider_user_id,
-            google_user.email,
-        )
-    except (GoogleOAuthError, RuntimeError, ValueError):
-        request.session["login_error"] = (
-            "Не удалось создать вход через Google. Попробуй позже."
-        )
-        return RedirectResponse("/login", status_code=303)
-    return RedirectResponse("/cabinet", status_code=303)
 
 
 @app.get("/logout")

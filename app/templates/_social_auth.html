@@ -17,16 +17,6 @@
     </button>
   {% endif %}
 
-  {% if google_oauth_enabled %}
-    <a class="sh-social-button sh-social-button--google" href="/auth/google/start" aria-label="Продолжить через Google" title="Продолжить через Google">
-      <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
-    </a>
-  {% else %}
-    <button class="sh-social-button sh-social-button--google" type="button" disabled title="Google не настроен">
-      <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
-    </button>
-  {% endif %}
-
   {% if yandex_oauth_enabled %}
     <a class="sh-social-button sh-social-button--yandex" href="/auth/yandex/start" title="Продолжить через Яндекс" aria-label="Продолжить через Яндекс">
       <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">

@@ -26,7 +26,6 @@ class AuthContextTest(unittest.TestCase):
 
         self.assertIn("telegram_bot_username", context)
         self.assertIn("telegram_auth_url", context)
-        self.assertIn("google_oauth_enabled", context)
         self.assertIn("yandex_oauth_enabled", context)
         self.assertIn("yandex_client_id", context)
         self.assertIn("yandex_origin", context)
@@ -37,6 +36,12 @@ class AuthContextTest(unittest.TestCase):
 
         self.assertIn('href="/auth/yandex/start"', template)
         self.assertNotIn("yandex-auth-container", template)
+
+    def test_google_oauth_routes_are_removed(self):
+        paths = {route.path for route in main.app.routes}
+
+        self.assertNotIn("/auth/google/start", paths)
+        self.assertNotIn("/auth/google/callback", paths)
 
 
 if __name__ == "__main__":

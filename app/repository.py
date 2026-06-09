@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
+import re
 import secrets
 from typing import Any
 
@@ -215,6 +216,34 @@ def normalize_login(value: str) -> str:
 
 def normalize_email(value: str) -> str:
     return value.strip().lower()
+
+
+_EMAIL_LOCAL_RE = re.compile(r"^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$")
+_EMAIL_DOMAIN_LABEL_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+
+
+def registration_email_is_valid(value: str) -> bool:
+    email = normalize_email(value)
+    if len(email) > 254 or email.count("@") != 1:
+        return False
+
+    local_part, domain = email.rsplit("@", 1)
+    if (
+        not local_part
+        or len(local_part) > 64
+        or local_part.startswith(".")
+        or local_part.endswith(".")
+        or ".." in local_part
+        or not _EMAIL_LOCAL_RE.fullmatch(local_part)
+    ):
+        return False
+
+    if not domain.endswith(".ru") or len(domain) > 253:
+        return False
+    labels = domain.split(".")
+    return len(labels) >= 2 and all(
+        _EMAIL_DOMAIN_LABEL_RE.fullmatch(label) for label in labels
+    )
 
 
 def generate_registration_code() -> str:
@@ -707,8 +736,8 @@ def create_pending_registration(
 ) -> PendingRegistrationCode:
     username = normalize_login(username or generate_site_username())
     email = normalize_email(email)
-    if not email or "@" not in email:
-        raise ValueError("invalid email")
+    if not registration_email_is_valid(email):
+        raise ValueError("email must be a valid .ru address")
 
     token = secrets.token_urlsafe(32)
     code = generate_registration_code()

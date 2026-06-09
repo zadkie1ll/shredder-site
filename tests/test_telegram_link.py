@@ -318,7 +318,7 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
 
         registration = create_pending_registration(
             None,
-            "User@Example.COM",
+            "User@Example.RU",
             "secret123",
         )
         pending = verify_pending_registration_code(
@@ -330,11 +330,11 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
         self.assertTrue(user.username.startswith("site_"))
         self.assertIsNone(authenticate_site_user(user.username, "secret123"))
         self.assertEqual(
-            authenticate_site_user("user@example.com", "secret123").id,
+            authenticate_site_user("user@example.ru", "secret123").id,
             user.id,
         )
         with self.sessionmaker() as session:
-            email_identity = session.get(SiteIdentity, "user@example.com")
+            email_identity = session.get(SiteIdentity, "user@example.ru")
 
         self.assertEqual(email_identity.user_id, user.id)
 
@@ -344,7 +344,7 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
 
         registration = create_pending_registration(
             None,
-            "user@example.com",
+            "user@example.ru",
             "secret123",
         )
         pending = verify_pending_registration_code(
@@ -392,10 +392,10 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
         self.add_user(100, "referrer", 1000, now + timedelta(days=30))
 
         user = create_oauth_user(
-            "google",
-            "google-123",
+            "yandex",
+            "ya-referrer-123",
             "User@Example.COM",
-            "site_google",
+            "site_yandex_referrer",
             now + timedelta(days=7),
             referrer_id=100,
         )
@@ -427,7 +427,7 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
         now = utcnow_naive().replace(microsecond=0)
         registration = create_pending_registration(
             None,
-            "user@example.com",
+            "user@example.ru",
             "secret123",
         )
         pending = verify_pending_registration_code(
@@ -440,26 +440,26 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
             user.id,
             "yandex",
             "ya-123",
-            "USER@EXAMPLE.COM",
+            "USER@EXAMPLE.RU",
         )
         found = get_user_by_oauth_identity("yandex", "ya-123")
 
         self.assertEqual(linked_user.id, user.id)
         self.assertEqual(found.id, user.id)
         self.assertEqual(
-            authenticate_site_user("user@example.com", "secret123").id,
+            authenticate_site_user("user@example.ru", "secret123").id,
             user.id,
         )
         with self.sessionmaker() as session:
             oauth_identity = session.get(SiteOAuthIdentity, "yandex:ya-123")
 
-        self.assertEqual(oauth_identity.email, "user@example.com")
+        self.assertEqual(oauth_identity.email, "user@example.ru")
 
-    def test_google_oauth_links_existing_email_user(self):
+    def test_existing_google_identity_records_remain_readable(self):
         now = utcnow_naive().replace(microsecond=0)
         registration = create_pending_registration(
             None,
-            "user@example.com",
+            "user@example.ru",
             "secret123",
         )
         pending = verify_pending_registration_code(
@@ -472,7 +472,7 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
             user.id,
             "google",
             "google-123",
-            "USER@EXAMPLE.COM",
+            "USER@EXAMPLE.RU",
         )
         found = get_user_by_oauth_identity("google", "google-123")
 
@@ -482,7 +482,7 @@ class TelegramLinkRepositoryTest(unittest.TestCase):
             oauth_identity = session.get(SiteOAuthIdentity, "google:google-123")
 
         self.assertEqual(oauth_identity.provider, "google")
-        self.assertEqual(oauth_identity.email, "user@example.com")
+        self.assertEqual(oauth_identity.email, "user@example.ru")
 
     def test_merged_account_can_login_by_telegram_id(self):
         now = utcnow_naive().replace(microsecond=0)

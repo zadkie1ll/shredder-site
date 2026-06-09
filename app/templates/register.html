@@ -48,7 +48,7 @@
   <form class="sh-login-card" method="post" action="/register">
     <p class="sh-login-card__eyebrow">7 дней бесплатно</p>
     <h1 id="register-title">Регистрация</h1>
-    <p class="sh-login-card__lead">Укажи почту и пароль. Мы отправим код, а после подтверждения откроем личный кабинет.</p>
+    <p class="sh-login-card__lead">Укажи почту в домене .ru и пароль. Мы отправим код, а после подтверждения откроем личный кабинет.</p>
 
     {% if error %}
       <div class="sh-login-alert">{{ error }}</div>
@@ -64,9 +64,9 @@
         type="email"
         name="email"
         autocomplete="email"
-        placeholder="mail@example.com"
+        placeholder="mail@example.ru"
         value="{{ email }}"
-        pattern="[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+"
+        pattern="[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.ru"
         data-email-input
         required
       >
@@ -110,7 +110,7 @@
       });
 
       emailInput.addEventListener("invalid", function () {
-        emailInput.setCustomValidity("Укажи корректную почту, например mail@example.com");
+        emailInput.setCustomValidity("Укажи корректную почту с доменом .ru, например mail@example.ru");
       });
     }
 
