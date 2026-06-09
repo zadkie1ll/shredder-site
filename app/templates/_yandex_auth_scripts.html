@@ -45,10 +45,11 @@
     )
       .then(function (result) {
         var yandexButton = container.closest(".sh-social-button--yandex");
-        if (!yandexButton) {
+        if (!yandexButton || !result || result.status !== "ok" || typeof result.handler !== "function") {
           return;
         }
-        yandexButton.addEventListener("click", function () {
+        yandexButton.addEventListener("click", function (event) {
+          event.preventDefault();
           result.handler()
             .then(finishYandexLogin)
             .catch(function () {
@@ -56,9 +57,7 @@
             });
         });
       })
-      .catch(function () {
-        window.location.href = "/auth/yandex/start";
-      });
+      .catch(function () {});
   })();
 </script>
 {% endif %}

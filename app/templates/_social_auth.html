@@ -28,10 +28,10 @@
   {% endif %}
 
   {% if yandex_oauth_enabled %}
-    <div class="sh-social-button sh-social-button--yandex" title="Продолжить через Яндекс">
+    <a class="sh-social-button sh-social-button--yandex" href="/auth/yandex/start" title="Продолжить через Яндекс" aria-label="Продолжить через Яндекс">
       <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">
       <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
-    </div>
+    </a>
   {% else %}
     <button class="sh-social-button sh-social-button--yandex" type="button" disabled title="Яндекс не настроен">
       <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">

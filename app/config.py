@@ -97,7 +97,10 @@ def load_settings() -> Settings:
     one_click_redirect_url = os.getenv("SHREDDER_SITE_ONE_CLICK_REDIRECT_URL") or os.getenv(
         _legacy_bot_env("REDIRECT_URL")
     )
-    public_base_url = os.getenv("SHREDDER_SITE_PUBLIC_BASE_URL", "https://shredder.local")
+    public_base_url = os.getenv(
+        "SHREDDER_SITE_PUBLIC_BASE_URL",
+        "https://shredder.local",
+    ).rstrip("/")
     telegram_bot_username = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_USERNAME")
     telegram_bot_token = os.getenv("SHREDDER_SITE_TELEGRAM_BOT_TOKEN") or os.getenv(
         _legacy_bot_env("TOKEN")
