@@ -1,0 +1,40 @@
+<div class="sh-social-login" aria-label="Вход через внешние сервисы">
+  {% if telegram_bot_username %}
+    <div class="sh-social-button sh-social-button--telegram" title="Продолжить через Telegram">
+      <img src="{{ url_for('static', path='/figma-assets/auth-telegram.svg') }}" alt="">
+      <script
+        async
+        src="https://telegram.org/js/telegram-widget.js?22"
+        data-telegram-login="{{ telegram_bot_username }}"
+        data-size="large"
+        data-auth-url="{{ telegram_auth_url }}"
+        data-request-access="write">
+      </script>
+    </div>
+  {% else %}
+    <button class="sh-social-button sh-social-button--telegram" type="button" disabled title="Telegram не настроен">
+      <img src="{{ url_for('static', path='/figma-assets/auth-telegram.svg') }}" alt="">
+    </button>
+  {% endif %}
+
+  {% if google_oauth_enabled %}
+    <a class="sh-social-button sh-social-button--google" href="/auth/google/start" aria-label="Продолжить через Google" title="Продолжить через Google">
+      <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
+    </a>
+  {% else %}
+    <button class="sh-social-button sh-social-button--google" type="button" disabled title="Google не настроен">
+      <img src="{{ url_for('static', path='/figma-assets/auth-google.svg') }}" alt="">
+    </button>
+  {% endif %}
+
+  {% if yandex_oauth_enabled %}
+    <div class="sh-social-button sh-social-button--yandex" title="Продолжить через Яндекс">
+      <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">
+      <div id="yandex-auth-container" class="sh-yandex-widget" data-client-id="{{ yandex_client_id }}" data-origin="{{ yandex_origin }}" data-token-uri="{{ yandex_token_uri }}"></div>
+    </div>
+  {% else %}
+    <button class="sh-social-button sh-social-button--yandex" type="button" disabled title="Яндекс не настроен">
+      <img src="{{ url_for('static', path='/figma-assets/auth-yandex.svg') }}" alt="">
+    </button>
+  {% endif %}
+</div>

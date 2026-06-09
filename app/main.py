@@ -148,11 +148,8 @@ def pending_referrer_id(request: Request, *, new_username: str | None = None) ->
     return referrer.id
 
 
-def login_context(request: Request, error: str | None = None) -> dict:
+def oauth_context() -> dict:
     return {
-        "request": request,
-        "user": current_user(request),
-        "error": error or request.session.pop("login_error", None),
         "telegram_bot_username": settings.telegram_bot_username,
         "telegram_auth_url": f"{settings.public_base_url}/auth/telegram/callback",
         "yandex_oauth_enabled": yandex_oauth_enabled(),
@@ -160,6 +157,15 @@ def login_context(request: Request, error: str | None = None) -> dict:
         "yandex_origin": yandex_origin(),
         "yandex_token_uri": yandex_suggest_token_uri(),
         "google_oauth_enabled": google_oauth_enabled(),
+    }
+
+
+def login_context(request: Request, error: str | None = None) -> dict:
+    return {
+        "request": request,
+        "user": current_user(request),
+        "error": error or request.session.pop("login_error", None),
+        **oauth_context(),
     }
 
 
@@ -178,6 +184,7 @@ def register_context(
         "error": error,
         "email": email or (pending.email if pending else ""),
         "pending_registration": pending,
+        **oauth_context(),
     }
 
 

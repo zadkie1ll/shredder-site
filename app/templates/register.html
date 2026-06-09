@@ -54,6 +54,10 @@
       <div class="sh-login-alert">{{ error }}</div>
     {% endif %}
 
+    {% include "_social_auth.html" %}
+
+    <div class="sh-login-divider"><span>или по почте</span></div>
+
     <label class="sh-login-field">
       <span>Почта</span>
       <input
@@ -125,4 +129,7 @@
     }
   })();
 </script>
+{% if not pending_registration %}
+  {% include "_yandex_auth_scripts.html" %}
+{% endif %}
 {% endblock %}
