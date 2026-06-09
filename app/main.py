@@ -442,8 +442,6 @@ async def _login_oauth_user(
                 email,
             )
         else:
-            if not registration_email_is_valid(email):
-                raise ValueError("new account email must use a .ru domain")
             username = generate_site_username()
             remnawave_user = await create_remnawave_user(username)
             if remnawave_user is None:
