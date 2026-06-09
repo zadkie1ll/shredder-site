@@ -53,7 +53,6 @@ def build_yandex_authorize_url(state: str) -> str:
         "response_type": "code",
         "client_id": settings.yandex_oauth_client_id,
         "redirect_uri": yandex_redirect_uri(),
-        "scope": settings.yandex_oauth_scopes,
         "state": state,
     }
     return f"{YANDEX_AUTHORIZE_URL}?{parse.urlencode(params)}"
