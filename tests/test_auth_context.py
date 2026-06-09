@@ -36,6 +36,7 @@ class AuthContextTest(unittest.TestCase):
         template = Path("app/templates/_social_auth.html").read_text()
 
         self.assertIn('href="/auth/yandex/start"', template)
+        self.assertNotIn("yandex-auth-container", template)
 
 
 if __name__ == "__main__":

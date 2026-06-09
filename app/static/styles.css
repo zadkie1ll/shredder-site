@@ -1656,8 +1656,7 @@ th {
   background: rgba(252, 63, 29, 0.16);
 }
 
-.sh-social-button--telegram iframe,
-.sh-yandex-widget {
+.sh-social-button--telegram iframe {
   inset: 0;
   max-width: none;
   opacity: 0.01;
@@ -1668,16 +1667,6 @@ th {
 .sh-social-button--telegram iframe {
   height: 54px;
   width: 190px;
-}
-
-.sh-yandex-widget {
-  height: 54px;
-  pointer-events: none;
-  width: 54px;
-}
-
-.sh-yandex-widget > * {
-  transform: translateX(-32px);
 }
 
 .sh-login-divider {
