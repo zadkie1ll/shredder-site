@@ -48,8 +48,7 @@ docker compose up --build
 - `SHREDDER_SITE_ONE_CLICK_REDIRECT_URL` — redirect-префикс для one-click установки;
 - `SHREDDER_SITE_DATABASE_URL` — доступ к общей Postgres-базе;
 - `SHREDDER_SITE_RWMS_ADDR` / `SHREDDER_SITE_RWMS_PORT` — gRPC endpoint RWMS/Remnawave.
-- `SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED` — включает legacy-режим урезанной подписки через internal squads, по умолчанию выключен;
-- `SHREDDER_SITE_INTERNAL_SQUADS_UUIDS` — legacy-список squad UUID через запятую, применяется только если включен `SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED`.
+- `SHREDDER_SITE_INTERNAL_SQUADS_UUIDS` — обязательный в production список squad UUID через запятую, назначаемый новым и существующим подпискам. Для совместимости также читаются `MI_VPN_BOT_INTERNAL_SQUADS_UUIDS` и `MI_YKP_INTERNAL_ALL_NODES_SQUAD_UUID`.
 
 `common` должен быть доступен в директории проекта перед сборкой образа.
 

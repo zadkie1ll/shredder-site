@@ -27,7 +27,7 @@ from app.remnawave import (
     create_remnawave_user,
     ensure_remnawave_user_internal_squads,
     get_remnawave_user,
-    legacy_limited_subscription_squads,
+    subscription_squads,
     update_remnawave_user_after_telegram_link,
 )
 from app.repository import (
@@ -722,9 +722,9 @@ async def render_cabinet(request: Request):
 
     referrals = get_referrals(user)
     remnawave_user = await get_remnawave_user(user.username)
-    legacy_squads = legacy_limited_subscription_squads()
-    if remnawave_user and legacy_squads:
-        required_squads = set(legacy_squads)
+    configured_squads = subscription_squads()
+    if remnawave_user and configured_squads:
+        required_squads = set(configured_squads)
         current_squads = set(remnawave_user.active_internal_squads)
         if not required_squads.issubset(current_squads):
             remnawave_user = (

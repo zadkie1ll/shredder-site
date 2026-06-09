@@ -50,7 +50,6 @@ class Settings:
     public_base_url: str
     trial_period_days: int
     internal_squads_uuids: list[str]
-    legacy_limited_subscription_enabled: bool
     yookassa_shop_id: str | None
     yookassa_secret: str | None
     receipt_email: str
@@ -91,8 +90,10 @@ def load_settings() -> Settings:
     rwms_addr = os.getenv("SHREDDER_SITE_RWMS_ADDR") or os.getenv(_legacy_bot_env("RWMS_ADDR"))
     rwms_port_raw = os.getenv("SHREDDER_SITE_RWMS_PORT") or os.getenv(_legacy_bot_env("RWMS_PORT"))
     rwms_port = int(rwms_port_raw) if rwms_port_raw else None
-    squads_value = os.getenv("SHREDDER_SITE_INTERNAL_SQUADS_UUIDS") or os.getenv(
-        _legacy_bot_env("INTERNAL_SQUADS_UUIDS"), ""
+    squads_value = (
+        os.getenv("SHREDDER_SITE_INTERNAL_SQUADS_UUIDS")
+        or os.getenv(_legacy_bot_env("INTERNAL_SQUADS_UUIDS"))
+        or os.getenv("MI_YKP_INTERNAL_ALL_NODES_SQUAD_UUID", "")
     )
     one_click_redirect_url = os.getenv("SHREDDER_SITE_ONE_CLICK_REDIRECT_URL") or os.getenv(
         _legacy_bot_env("REDIRECT_URL")
@@ -129,6 +130,10 @@ def load_settings() -> Settings:
             raise ValueError("YooKassa envs must be set in production.")
         if not telegram_bot_username or not telegram_bot_token:
             raise ValueError("Telegram bot username and token must be set in production.")
+        if not squads_value.strip():
+            raise ValueError(
+                "SHREDDER_SITE_INTERNAL_SQUADS_UUIDS must be set in production."
+            )
     return Settings(
         environment=environment,
         session_secret=session_secret,
@@ -143,10 +148,6 @@ def load_settings() -> Settings:
             for squad_uuid in squads_value.split(",")
             if squad_uuid.strip()
         ],
-        legacy_limited_subscription_enabled=_read_bool(
-            "SHREDDER_SITE_LEGACY_LIMITED_SUBSCRIPTION_ENABLED",
-            False,
-        ),
         yookassa_shop_id=yookassa_shop_id,
         yookassa_secret=yookassa_secret,
         receipt_email=os.getenv("SHREDDER_SITE_RECEIPT_EMAIL", "receipts@orpheous.ru"),

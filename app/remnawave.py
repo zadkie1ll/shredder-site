@@ -16,9 +16,7 @@ class RemnawaveUser:
     active_internal_squads: tuple[str, ...]
 
 
-def legacy_limited_subscription_squads() -> list[str]:
-    if not settings.legacy_limited_subscription_enabled:
-        return []
+def subscription_squads() -> list[str]:
     return settings.internal_squads_uuids
 
 
@@ -101,7 +99,7 @@ async def create_remnawave_user(
             expire_at=expire_at,
             status=proto.UserStatus.ACTIVE,
             traffic_limit_strategy=proto.TrafficLimitStrategy.NO_RESET,
-            active_internal_squads=[*legacy_limited_subscription_squads()],
+            active_internal_squads=[*subscription_squads()],
             created_at=datetime.now(timezone.utc),
             description="created from shredder-site registration",
         )
@@ -156,9 +154,9 @@ async def update_remnawave_user_after_telegram_link(
             status=proto.UserStatus.ACTIVE,
             traffic_limit_strategy=proto.TrafficLimitStrategy.NO_RESET,
         )
-        legacy_squads = legacy_limited_subscription_squads()
-        if legacy_squads:
-            request.active_internal_squads.extend(legacy_squads)
+        required_squads = subscription_squads()
+        if required_squads:
+            request.active_internal_squads.extend(required_squads)
         if expire_at is not None:
             if expire_at.tzinfo is None:
                 expire_at = expire_at.replace(tzinfo=timezone.utc)
@@ -189,8 +187,8 @@ async def update_remnawave_user_after_telegram_link(
 
 
 async def ensure_remnawave_user_internal_squads(username: str) -> RemnawaveUser | None:
-    legacy_squads = legacy_limited_subscription_squads()
-    if not settings.remnawave_enabled or not legacy_squads:
+    required_squads = subscription_squads()
+    if not settings.remnawave_enabled or not required_squads:
         return None
 
     try:
@@ -211,14 +209,14 @@ async def ensure_remnawave_user_internal_squads(username: str) -> RemnawaveUser 
         current_squads = {
             squad.uuid for squad in getattr(existing_user, "active_internal_squads", [])
         }
-        required_squads = set(legacy_squads)
-        if required_squads.issubset(current_squads):
+        required_squad_set = set(required_squads)
+        if required_squad_set.issubset(current_squads):
             return _remnawave_user_from_response(existing_user)
 
         response = await client.update_user(
             proto.UpdateUserRequest(
                 uuid=existing_user.uuid,
-                active_internal_squads=[*legacy_squads],
+                active_internal_squads=[*required_squads],
             )
         )
         if response is None:
